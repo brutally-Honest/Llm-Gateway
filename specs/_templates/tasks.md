@@ -10,6 +10,9 @@ Small, ordered, checkable steps. The agent ticks them as it goes.
 
 - [ ]
 
-## Questions raised during work
+## Open queries
 
-> When unsure, stop and write the question here instead of guessing.
+> Doubts, roadblocks and limits live in `research.md`, not here. List the open ones by
+> id so a blocked task is traceable from this file.
+
+- [ ] Q1 — <FILL: one line> (blocks T?)

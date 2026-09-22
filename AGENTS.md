@@ -32,10 +32,13 @@ A lower priority never degrades a higher one.
 - Stateless process; state lives in external stores.
 
 ## Workflow
-Read `specs/NNN-*/spec.md` → follow its `plan.md` → tick `tasks.md` as you go.
-Never write code outside the current spec's scope. One branch per feature or fix:
-`feat/NNN-slug`, `fix/slug`, `chore/slug`. Anything decided mid-way that outlives the
-feature becomes an ADR in `docs/decisions/`.
+Read `specs/NNN-*/spec.md` → follow its `plan.md` → tick `tasks.md` as you go. Every
+doubt, roadblock or limit you hit goes in the same folder's `research.md` as a numbered
+query, linked from the task it blocks (`T4 (see Q2)`); record the answer there when you
+find it. Never write code outside the current spec's scope. One branch per feature or
+fix: `feat/NNN-slug`, `fix/slug`, `chore/slug`. If an answer changes scope or a do/don't,
+edit `spec.md`; if it changes the approach, edit `plan.md`; if it outlives the feature or
+is hard to reverse, write an ADR in `docs/decisions/`.
 
 ## Stack
 Decided in `PLAN.md` §8. Do not introduce a dependency without an ADR.
@@ -49,4 +52,5 @@ Decided in `PLAN.md` §8. Do not introduce a dependency without an ADR.
 - Do not weaken lint, tests or config to make a check pass.
 - Do not add suppressions, skip tests, or delete assertions.
 - Do not add a dependency without an ADR.
-- When unsure, stop and write the question into the current `tasks.md`. Do not guess.
+- When unsure, stop. Add the question to the feature's `research.md` as `open`, link it
+  from the blocked task, and do not guess.
