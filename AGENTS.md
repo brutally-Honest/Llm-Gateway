@@ -37,17 +37,6 @@ Never write code outside the current spec's scope. One branch per feature or fix
 `feat/NNN-slug`, `fix/slug`, `chore/slug`. Anything decided mid-way that outlives the
 feature becomes an ADR in `docs/decisions/`.
 
-## Commits (PLAN §11)
-`<type>(<scope>): <imperative summary>` — lowercase, no trailing period, subject ≤ 72
-chars — then a blank line and 1–3 present-tense sentences saying what it does and why.
-Types: `feat fix refactor perf test docs build ci chore revert`. Scopes are nouns from
-the codebase: `proxy capture anthropic openai-chat cursor claude-code cost ratelimit
-routing store observability config ci docs`. One logical change per commit — if the
-summary needs "and", split it. Extended context (spec link, ADR, rejected alternatives,
-verification) goes in `git notes add`, not the body.
-**Never add `Co-authored-by:` or any AI attribution trailer.** The repo owner is the
-author of record; the `commit-msg` hook rejects them.
-
 ## Stack
 Decided in `PLAN.md` §8. Do not introduce a dependency without an ADR.
 
