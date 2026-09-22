@@ -229,7 +229,7 @@ cmd/  deploy/
 ### Flow per feature
 1. **spec.md.** I write or approve it. No code before the spec is approved.
 2. **plan.md.** The agent drafts the approach against the spec; I approve it.
-3. **tasks.md.** Small, ordered, checkable steps. The agent ticks them as it goes. A task blocked by or shaped by a query links it: `T4 (see Q2)`.
+3. **tasks.md.** Small, ordered, checkable steps. The agent ticks them as it goes. A task held up by a query in `research.md` ends with `(blocked: Q2)`; once that query is answered it becomes `(shaped: Q2)`. The link stays on the task line either way — the status lives in `research.md`.
 4. **Branch.** One branch per feature or fix: `feat/NNN-slug`, `fix/short-slug`, `chore/short-slug`.
 5. **PR.** Links the spec, lists each acceptance criterion with its evidence (test name, log, screenshot), and notes any deviation from the plan.
 6. **Research.** Every doubt, roadblock, or limit met while building goes into `research.md`, with its answer once found (see "research.md" below).
