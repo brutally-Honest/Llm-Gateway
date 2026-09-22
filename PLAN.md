@@ -241,7 +241,6 @@ Small fixes don't need a spec folder. The PR description states the bug, the cau
 - Workflow: read spec → follow plan → update tasks.md → never code outside the current spec's scope
 - Hard rules: §5
 - Stack: §8, with an instruction not to introduce a dependency without an ADR
-- Commits: §11. Never add `Co-authored-by` or any AI attribution trailer.
 - Commands: build, test (`go test -race ./...`), lint, compose up
 - Conventions: package layout, error wrapping, logging fields, test style
 - When unsure: stop and write the question in tasks.md instead of guessing
@@ -266,69 +265,20 @@ Small fixes don't need a spec folder. The PR description states the bug, the cau
 
 Every commit message is written with intent. No `wip`, `fix stuff`, `update`, or auto-generated summaries.
 
-### Format
+**The format itself is not defined here.** It is a personal, cross-repository standard, kept in one place so it can't drift per project: the user-level skill `~/.claude/skills/commit-conventions/SKILL.md`. Any agent working in this repo loads that skill before writing a commit message or a PR description. In short, it requires `<type>(<scope>): <imperative summary>` — lowercase, no trailing period, subject ≤ 72 characters — then a blank line and one to three present-tense sentences saying what the commit does and why; one logical change per commit; extended context in a git note rather than the body; and **no `Co-authored-by` or any other AI attribution trailer**, because I am the author of record.
 
-```
-<type>(<scope>): <imperative summary>
+What is repo-specific, and so belongs here:
 
-<body: 1–3 plain sentences — what this commit does and why>
-```
+### Scopes
 
-- **type:** what kind of change (table below).
-- **scope:** a noun naming the area touched, matching the codebase: `proxy`, `capture`, `anthropic`, `openai-chat`, `cursor`, `claude-code`, `cost`, `ratelimit`, `routing`, `store`, `observability`, `config`, `ci`, `docs`.
-- **summary:** imperative mood — what the commit *does*, not what *happened*. Test: "If applied, this commit will ___". Lowercase, no trailing period, whole line ≤ 72 characters.
-- **body:** plain language, written in the present tense ("this commit introduces…"). Optional only for trivial commits. Longer context goes in a git note (below).
+A scope is a noun naming the area touched, matching this codebase: `proxy`, `capture`, `anthropic`, `openai-chat`, `cursor`, `claude-code`, `cost`, `ratelimit`, `routing`, `store`, `observability`, `config`, `ci`, `docs`.
 
-**Example**
-```
-feat(observability): add request tracing
+**Branch and commit agree.** Commits on `feat/003-cursor-adapter` use scopes from that feature.
 
-This commit introduces OpenTelemetry spans around each proxied request,
-so latency added by the gateway is visible separately from provider latency.
-```
+### Git notes in this repo
 
-| ✅ Do | ❌ Don't |
-|---|---|
-| `feat(capture): tee sse stream into capture sink` | `feat(capture): added sse teeing` (past tense) |
-| `fix(anthropic): forward anthropic-beta header verbatim` | `fix: bug` (no scope, no meaning) |
-| `refactor(core): extract protocol adapter interface` | `refactor(core): Refactored stuff.` |
-| `test(openai-chat): add recorded cursor stream fixtures` | `wip` / `misc changes` / `final final` |
+Add a note (`git notes add -m "<note>" <commit>`) when the commit involves a decision, a trade-off, or a spec criterion:
 
-### Types
-
-| Type | Use for |
-|---|---|
-| `feat` | New behaviour or capability |
-| `fix` | A bug fix |
-| `refactor` | Code change with no behaviour change |
-| `perf` | Performance improvement with no behaviour change |
-| `test` | Adding or fixing tests only |
-| `docs` | Docs, specs, ADRs, PLAN.md |
-| `build` | Dependencies, Dockerfile, compose |
-| `ci` | CI pipeline |
-| `chore` | Tooling and housekeeping that fits nowhere else |
-| `revert` | Reverting a previous commit (body names the reverted hash and why) |
-
-A breaking change adds `!` after the scope, e.g. `feat(config)!: rename providers key to upstreams`, and the body says what breaks.
-
-### Rules
-
-- **One logical change per commit.** If the summary needs "and", split the commit.
-- **No AI attribution.** No `Co-authored-by: Claude`, no "Generated with Claude Code", no signature from Cursor or any other tool. I am the author of record.
-  - Claude Code: turn off co-author attribution in `settings.json`.
-  - Any agent: AGENTS.md forbids adding trailers; the hook below rejects them anyway.
-- **Branch and commit agree.** Commits on `feat/003-cursor-adapter` use scopes from that feature.
-- **Agents follow this format too.** An agent-written message that breaks format is rewritten before push.
-
-### Git notes: the extended context
-
-The message says *what* and a little *why*. Anything a reviewer or a future agent needs beyond that goes into a git note on the same commit:
-
-```
-git notes add -m "<note>" <commit>
-```
-
-Add a note when the commit involves a decision, a trade-off, or a spec criterion. Template:
 ```
 Spec: specs/003-cursor-adapter/spec.md (AC2, AC4)
 ADR: docs/decisions/0004-capture-store.md
@@ -338,14 +288,21 @@ Trade-off / known limit: <…>
 Verified by: <test names, manual check>
 ```
 
-**Git-notes caveats, and the fixes:**
-- **Notes are not pushed by default.** Push with `git push origin refs/notes/commits`; fetch with `git config --add remote.origin.fetch '+refs/notes/*:refs/notes/*'`.
-- **Notes can be lost on rebase or amend.** Set `git config notes.rewriteRef refs/notes/commits` so they follow the rewritten commit.
-- **GitHub doesn't show notes.** The PR description still carries the essentials (spec link, acceptance-criteria evidence). Notes are the permanent per-commit record; the PR is the review surface.
+Repo setup, so notes survive and travel:
+```
+git config core.hooksPath .githooks
+git config notes.rewriteRef refs/notes/commits
+git config --add remote.origin.fetch '+refs/notes/*:refs/notes/*'
+git push origin refs/notes/commits
+```
+GitHub doesn't display notes, so the PR description still carries the essentials (spec link, acceptance-criteria evidence). Notes are the permanent per-commit record; the PR is the review surface.
 
 ### Enforcement
 
-- A **`commit-msg` hook** in the repo (installed by `make setup`):
-  - rejects a subject that doesn't match `^(feat|fix|refactor|perf|test|docs|build|ci|chore|revert)(\([a-z0-9-]+\))!?: .+$`, or is over 72 characters;
+The skill gets the message right when it is written. The repo assumes it wasn't:
+
+- A **`commit-msg` hook** at `.githooks/commit-msg`, enabled with `git config core.hooksPath .githooks`:
+  - rejects a subject that doesn't match `^(feat|fix|refactor|perf|test|docs|build|ci|chore|revert)(\([a-z0-9-]+\))!?: .+$`, ends in a period, or runs over 72 characters;
   - rejects any `Co-authored-by:` or AI-attribution trailer.
 - **CI repeats the same check** on every commit in a PR, so a skipped hook can't sneak through.
+- Never bypass either with `--no-verify`.
