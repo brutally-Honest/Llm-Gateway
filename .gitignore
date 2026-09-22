@@ -1,0 +1,35 @@
+# Binaries
+bin/
+dist/
+/llm-gateway
+*.exe
+
+# Go
+*.test
+*.out
+coverage.out
+vendor/
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.local.yaml
+
+# Local capture store
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+blobs/
+data/
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Claude Code local overrides (shared settings.json is committed)
+.claude/settings.local.json

@@ -1,0 +1,63 @@
+# LLM Gateway
+
+An observability-first LLM gateway in Go, between any LLM client and any provider,
+capturing prompts, responses, tool calls, tokens and cost. **Not a harness** — it never
+runs agents, executes tools or edits files. **Not tied to one vendor** — Claude Code and
+Cursor are only the first clients. Full intent, phases, stack rationale and open
+questions: `PLAN.md`, which wins wherever this file disagrees with it.
+
+## Priority order
+Observability → cost → rate limiting → routing → everything else.
+A lower priority never degrades a higher one.
+
+## Agnosticism (checked in every review)
+- `internal/core/` knows no provider and no client. No provider- or client-specific
+  `if` outside `internal/protocols/<name>/` and `internal/clients/<name>/`.
+- Everything downstream reads only canonical events (`session`, `request`, `message`,
+  `tool_call`, `tool_result`, `usage`, `error`) — never a provider's raw format.
+- Unknown client → still proxied and captured, labelled `unknown`.
+- Unknown model → still captured; cost is `unknown`, never an error.
+- Adding a client, protocol or provider = a new profile, adapter or config entry plus
+  its contract tests. The core stays unchanged.
+
+## Hard rules (PLAN §5)
+- Passthrough first, transform later. Forward bytes faithfully; parse copies on the side.
+- Forward headers and body fields as open lists. Never allowlist today's set.
+- Streams are sacred: no buffering, forward keep-alive pings, keep upstream `content-type`.
+- Errors pass through verbatim, including `retry-after` and rate-limit headers.
+- Don't reshape prompts: `system`, `cache_control` and message structure stay as sent.
+- Capture never blocks; if capture fails the request still succeeds.
+- Secrets never land in storage — auth headers and keys are always redacted.
+- No route reachable from outside localhost without a gateway token.
+- Stateless process; state lives in external stores.
+
+## Workflow
+Read `specs/NNN-*/spec.md` → follow its `plan.md` → tick `tasks.md` as you go.
+Never write code outside the current spec's scope. One branch per feature or fix:
+`feat/NNN-slug`, `fix/slug`, `chore/slug`. Anything decided mid-way that outlives the
+feature becomes an ADR in `docs/decisions/`.
+
+## Commits (PLAN §11)
+`<type>(<scope>): <imperative summary>` — lowercase, no trailing period, subject ≤ 72
+chars — then a blank line and 1–3 present-tense sentences saying what it does and why.
+Types: `feat fix refactor perf test docs build ci chore revert`. Scopes are nouns from
+the codebase: `proxy capture anthropic openai-chat cursor claude-code cost ratelimit
+routing store observability config ci docs`. One logical change per commit — if the
+summary needs "and", split it. Extended context (spec link, ADR, rejected alternatives,
+verification) goes in `git notes add`, not the body.
+**Never add `Co-authored-by:` or any AI attribution trailer.** The repo owner is the
+author of record; the `commit-msg` hook rejects them.
+
+## Stack
+Decided in `PLAN.md` §8. Do not introduce a dependency without an ADR.
+
+## Commands
+- install: <FILL: filled in Phase 0, once go.mod exists and the command has been run>
+- verify:  <FILL: filled in Phase 0 — lint + `go test -race ./...` chained>
+- run:     <FILL: filled in Phase 0>
+
+## Do not
+- Do not weaken lint, tests or config to make a check pass.
+- Do not add suppressions, skip tests, or delete assertions.
+- Do not add a dependency without an ADR.
+- When unsure, stop and write the question into the current `tasks.md`. Do not guess.
