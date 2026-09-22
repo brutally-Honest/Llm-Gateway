@@ -216,6 +216,7 @@ specs/
     spec.md                # WHAT and WHY: human-owned
     plan.md                # HOW: agent-drafted, human-approved
     tasks.md               # checklist: agent-maintained
+    research.md            # doubts, roadblocks, limits hit, and their answers: feature-local
   ...
 internal/
   core/                    # proxy engine, canonical events: knows no provider
@@ -228,10 +229,11 @@ cmd/  deploy/
 ### Flow per feature
 1. **spec.md.** I write or approve it. No code before the spec is approved.
 2. **plan.md.** The agent drafts the approach against the spec; I approve it.
-3. **tasks.md.** Small, ordered, checkable steps. The agent ticks them as it goes.
+3. **tasks.md.** Small, ordered, checkable steps. The agent ticks them as it goes. A task blocked by or shaped by a query links it: `T4 (see Q2)`.
 4. **Branch.** One branch per feature or fix: `feat/NNN-slug`, `fix/short-slug`, `chore/short-slug`.
 5. **PR.** Links the spec, lists each acceptance criterion with its evidence (test name, log, screenshot), and notes any deviation from the plan.
-6. **Decisions.** Anything decided mid-way that outlives the feature becomes an ADR. Resolving an OQ always produces an ADR, and this file is updated in the same PR.
+6. **Research.** Every doubt, roadblock, or limit met while building goes into `research.md`, with its answer once found (see "research.md" below).
+7. **Decisions.** Anything decided mid-way that outlives the feature becomes an ADR. Resolving an OQ always produces an ADR, and this file is updated in the same PR.
 
 Small fixes don't need a spec folder. The PR description states the bug, the cause, the fix, and the test that proves it.
 
@@ -243,7 +245,7 @@ Small fixes don't need a spec folder. The PR description states the bug, the cau
 - Stack: §8, with an instruction not to introduce a dependency without an ADR
 - Commands: build, test (`go test -race ./...`), lint, compose up
 - Conventions: package layout, error wrapping, logging fields, test style
-- When unsure: stop and write the question in tasks.md instead of guessing
+- When unsure: stop, add the question to the feature's `research.md` as `open`, link it from the blocked task, and don't guess
 
 ### spec.md skeleton
 ```
@@ -258,6 +260,36 @@ Small fixes don't need a spec folder. The PR description states the bug, the cau
 ## Acceptance criteria   testable, numbered (AC1, AC2, …)
 ## Open questions
 ```
+
+### research.md: the feature's working memory
+
+**What goes here:** the drilled-down stuff that's too detailed for the spec or plan but worth remembering:
+- **Flow:** "does Claude Code send `count_tokens` before or after the first message?"
+- **Low-level technical:** "`ReverseProxy` buffers when `Content-Length` is set — how to force flush?"
+- **Limits hit:** "Cursor strips our custom header; can't use it for session ID."
+- **Roadblocks and workarounds:** what blocked, what unblocked it.
+
+**Where it's referenced:** only from `tasks.md` (which task it blocked or shaped) and from commit git notes (`Queries: Q2, Q5`). The spec and plan don't link to it; they stay at the level of intent and approach.
+
+**Escalation rules**, so nothing important stays buried:
+| If the answer… | Then |
+|---|---|
+| changes scope, acceptance criteria, or a do/don't | update `spec.md` itself (not a link), mark the query `→ spec` |
+| changes the approach | update `plan.md` itself, mark the query `→ plan` |
+| matters beyond this feature, or is hard to reverse | write an ADR, mark the query `→ ADR-NNNN` |
+| is local to this feature | it stays here; that's the default |
+
+**Entry format:**
+```
+## Q3 — ReverseProxy delays SSE flush behind the capture wrapper
+- Status: open | answered | workaround | won't fix     Level: flow | technical | limit
+- Blocks / shapes: T4, T6
+- Context: what I was doing and what I saw (logs, versions, commands)
+- Question: the one thing to know
+- Answer: what's true, and how I know (test, doc link, experiment)
+- Outcome: what changed because of it; escalated → spec / plan / ADR-NNNN, if any
+```
+Entries are never deleted. A wrong answer later gets a new dated line, not an edit, so the history of the confusion is kept.
 
 ---
 
@@ -282,6 +314,7 @@ Add a note (`git notes add -m "<note>" <commit>`) when the commit involves a dec
 ```
 Spec: specs/003-cursor-adapter/spec.md (AC2, AC4)
 ADR: docs/decisions/0004-capture-store.md
+Research: specs/003-cursor-adapter/research.md (Q2, Q5)
 Why this approach: <one or two lines>
 Alternatives rejected: <one line each>
 Trade-off / known limit: <…>
