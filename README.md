@@ -14,7 +14,7 @@ Status: **Phase 0**, bootstrapping. No application code yet.
   questions, commit conventions.
 - `AGENTS.md` — the rules any agent working in this repo must follow.
 - `specs/` — one folder per feature: `spec.md` (what and why), `plan.md` (how),
-  `tasks.md` (checklist).
+  `tasks.md` (checklist), `research.md` (doubts, roadblocks and limits, with answers).
 - `docs/decisions/` — ADRs.
 - `docs/clients/` — one page per client: how to connect, known limits.
 
