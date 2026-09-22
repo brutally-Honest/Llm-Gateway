@@ -32,14 +32,19 @@ A lower priority never degrades a higher one.
 - Stateless process; state lives in external stores.
 
 ## Workflow
-Read `specs/NNN-*/spec.md` → follow its `plan.md` → tick `tasks.md` as you go. Every
-doubt, roadblock or limit you hit goes in the same folder's `research.md` as a numbered
-query. The task it holds up ends with `(blocked: Q2)`; when you record the answer that
-becomes `(shaped: Q2)`. The link stays on the task line either way — the status lives in
-`research.md`. Never write code outside the current spec's scope. One branch per feature or
-fix: `feat/NNN-slug`, `fix/slug`, `chore/slug`. If an answer changes scope or a do/don't,
-edit `spec.md`; if it changes the approach, edit `plan.md`; if it outlives the feature or
-is hard to reverse, write an ADR in `docs/decisions/`.
+Read `specs/NNN-*/spec.md` → follow its `plan.md` → tick `tasks.md` as you go. Never
+write code outside the current spec's scope. One branch per feature or fix:
+`feat/NNN-slug`, `fix/slug`, `chore/slug`.
+
+Every doubt, roadblock or limit you hit goes in the same folder's `research.md` as a
+numbered query. The task it holds up ends with `(blocked: Q2)`; when you record the
+answer that becomes `(shaped: Q2)`. The link stays on the task line either way — the
+status lives in `research.md`. **Entries there are never deleted:** a correction is a
+new dated line, not an edit, so the history of the confusion is kept.
+
+If an answer changes scope or a do/don't, edit `spec.md`; if it changes the approach,
+edit `plan.md`; if it outlives the feature or is hard to reverse, write an ADR in
+`docs/decisions/`.
 
 ## Stack
 Decided in `PLAN.md` §8. Do not introduce a dependency without an ADR.

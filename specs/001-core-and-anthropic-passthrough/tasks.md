@@ -14,4 +14,4 @@ query in `research.md` ends with `(blocked: Q2)`; once that query is answered it
 
 - [ ] T1 — <FILL: one step>
 - [ ] T2 — <FILL: one step> (blocked: Q1)
-- [ ] T3 — <FILL: one step> (shaped: Q1)
+- [ ] T3 — <FILL: one step> (shaped: Q2)

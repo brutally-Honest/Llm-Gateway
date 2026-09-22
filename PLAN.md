@@ -269,7 +269,7 @@ Small fixes don't need a spec folder. The PR description states the bug, the cau
 - **Limits hit:** "Cursor strips our custom header; can't use it for session ID."
 - **Roadblocks and workarounds:** what blocked, what unblocked it.
 
-**Where it's referenced:** only from `tasks.md` (which task it blocked or shaped) and from commit git notes (`Queries: Q2, Q5`). The spec and plan don't link to it; they stay at the level of intent and approach.
+**Where it's referenced:** only from `tasks.md` (which task it blocked or shaped) and from commit git notes (`Research: … (Q2, Q5)`). The spec and plan don't link to it; they stay at the level of intent and approach.
 
 **Escalation rules**, so nothing important stays buried:
 | If the answer… | Then |
