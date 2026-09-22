@@ -2,17 +2,13 @@
 status: draft
 spec: ./spec.md
 plan: ./plan.md
+research: ./research.md
 ---
 
 # 001 — Tasks
 
-Small, ordered, checkable steps. The agent ticks them as it goes.
+Small, ordered, checkable steps. The agent ticks them as it goes. A task held up or
+shaped by a query in `research.md` links it inline: `(blocked: Q2)`.
 
-- [ ]
-
-## Open queries
-
-> Doubts, roadblocks and limits live in `research.md`, not here. List the open ones by
-> id so a blocked task is traceable from this file.
-
-- [ ] Q1 — <FILL: one line> (blocks T?)
+- [ ] T1 — <FILL: one step>
+- [ ] T2 — <FILL: one step> (blocked: Q1)
