@@ -303,7 +303,7 @@ What is repo-specific, and so belongs here:
 
 ### Scopes
 
-A scope is a noun naming the area touched, matching this codebase: `proxy`, `capture`, `anthropic`, `openai-chat`, `cursor`, `claude-code`, `cost`, `ratelimit`, `routing`, `store`, `observability`, `config`, `ci`, `docs` , `repo`.
+A scope is a noun naming the area touched, matching this codebase: `proxy`, `capture`, `anthropic`, `openai-chat`, `cursor`, `claude-code`, `cost`, `ratelimit`, `routing`, `store`, `observability`, `config`, `server` (`internal/server`, `cmd/gateway`), `logging`, `deploy` (Dockerfile, compose, image), `docs`, `repo` (repo-level tooling, hooks, process docs).
 
 **Branch and commit agree.** Commits on `feat/003-cursor-adapter` use scopes from that feature.
 
