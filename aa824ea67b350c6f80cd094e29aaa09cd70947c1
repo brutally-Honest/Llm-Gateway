@@ -1,0 +1,4 @@
+ADR: docs/decisions/0001-local-gate-instead-of-ci.md
+Why this approach: single-user local tool; every CI check can run before the push leaves the machine.
+Alternatives rejected: keep GitHub Actions (duplicate pins, no extra coverage); drop CI with no backstop (--no-verify commits slip into history).
+Trade-off / known limit: git push --no-verify bypasses the gate; accepted as a guard against mistakes, not intent.
