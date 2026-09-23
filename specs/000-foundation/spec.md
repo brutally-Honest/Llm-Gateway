@@ -18,7 +18,8 @@ machine, through `make verify` and git hooks.
 
 ## Scope
 - **Go module**: `go.mod` at the repo root, module path `github.com/brutally-honest/llm-gateway`
-  (all lowercase). The GitHub repo was renamed to lowercase to match. The `go` line
+  (all lowercase). The GitHub repo was renamed to lowercase to match. The lowercase path
+  is canonical; GitHub displays the owner as `brutally-Honest`. The `go` line
   in `go.mod` is the single source of truth for the Go version: `go 1.25.4`, the locally
   installed toolchain.
 - **Entry point**: `cmd/gateway/main.go` — load config, build logger, build router,

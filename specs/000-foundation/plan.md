@@ -376,6 +376,16 @@ These tests run inside `make verify`. They cost well under a second each, and `s
   `:7197` and `0.0.0.0:65535` load. Each is checked from the file and from env.
 - `cmd/gateway` `TestRun_InvalidAddressFailsBeforeBind`: exit `2`, `listen` is never
   called, and the value is absent from the output.
+- `cmd/gateway` `TestRun_BindErrors`: an injected `listen` returning an error that
+  wraps `syscall.EADDRINUSE` gives exit `1` and reason `address in use`; any other
+  error gives exit `1` and reason `bind failed`. The address appears nowhere in the
+  output.
+
+**Logging tests** (`internal/logging`, in `make verify`):
+- `TestNew_JSONShape`: the keys are `level`, `ts`, `msg` and `caller`; the level
+  filter works; there is no stack on error lines.
+- `TestErrorOutput_JSON`: a zap internal error (a failing `WriteSyncer`) produces one
+  JSON line with `msg` `logger error`, and no plain text.
 
 ### AC evidence
 
