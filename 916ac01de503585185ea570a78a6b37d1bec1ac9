@@ -1,0 +1,3 @@
+Spec: specs/000-foundation/spec.md (AC1-AC24)
+ADR: docs/decisions/0001-local-gate-instead-of-ci.md, docs/decisions/0002-config-format-and-loader.md
+Trade-off / known limit: the 30s shutdown_timeout will cut long SSE streams; 001 must revisit it (spec Open questions).
