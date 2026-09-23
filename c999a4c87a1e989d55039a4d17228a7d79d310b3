@@ -1,0 +1,4 @@
+Spec: specs/000-foundation/spec.md (AC22)
+Why this approach: setup-git and TestSetupGit_Idempotent land here so the module has a package; go test -race ./... exits 1 and golangci-lint exits 5 on a module with no packages (checked with go 1.25.4 and golangci-lint 2.13.2).
+Trade-off / known limit: the forbidigo rules for zap.L, zap.S and zap.ReplaceGlobals cannot be exercised until zap is a dependency (T4). The fmt, log and println rules were checked against a throwaway file.
+Verified by: make setup && make verify (0 issues; test/githooks ok); a second make setup leaves the notes refspec listed once.
