@@ -1,0 +1,33 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - errorlint
+    - forbidigo
+  settings:
+    forbidigo:
+      analyze-types: true
+      forbid:
+        # Nothing writes plain text to stdout or stderr (spec 000, Logging).
+        - pattern: ^fmt\.Print.*$
+          pkg: ^fmt$
+          msg: log through zap; nothing writes plain text
+        - pattern: ^(print|println)$
+          msg: log through zap; nothing writes plain text
+        - pattern: ^log\.(Print|Fatal|Panic).*$
+          pkg: ^log$
+          msg: log through zap; nothing writes plain text
+        # No global logger (spec 000, Don't).
+        - pattern: ^zap\.(L|S|ReplaceGlobals)$
+          pkg: ^go\.uber\.org/zap$
+          msg: pass the logger in; no global logger
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - forbidigo
+
+formatters:
+  enable:
+    - gofmt

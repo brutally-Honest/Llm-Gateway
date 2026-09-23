@@ -24,7 +24,7 @@ listed on each of them.
 
 ## Gate
 
-- [ ] T1 — `go.mod` (`github.com/brutally-honest/llm-gateway`, `go 1.25.4`, no
+- [x] T1 — `go.mod` (`github.com/brutally-honest/llm-gateway`, `go 1.25.4`, no
   requires yet); `.gitignore` adds `/config.yaml`; `Makefile` with
   `GOLANGCI_LINT_VERSION = 2.13.2` and the targets `setup` (`setup-git`, `setup-lint`,
   `go mod download`), `test`, `lint` and `verify`; `.golangci.yml` (v2 format, the
