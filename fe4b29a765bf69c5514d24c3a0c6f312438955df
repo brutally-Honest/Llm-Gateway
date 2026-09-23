@@ -1,0 +1,4 @@
+ADR: docs/decisions/0002-config-format-and-loader.md
+Why this approach: gopkg.in/yaml.v3 was archived on 2025-04-01; go.yaml.in/yaml/v3 is its maintained continuation.
+Alternatives rejected: yaml/v4 (release candidates only, rc.6 as of June 2026); env-only config; falling back to config.example.yaml.
+Trade-off / known limit: GATEWAY_ env names are a public contract and costly to rename.
