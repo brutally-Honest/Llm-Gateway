@@ -18,7 +18,7 @@ machine, through `make verify` and git hooks.
 
 ## Scope
 - **Go module**: `go.mod` at the repo root, module path `github.com/brutally-honest/llm-gateway`
-  (all lowercase). The GitHub repo is being renamed to lowercase to match. The `go` line
+  (all lowercase). The GitHub repo was renamed to lowercase to match. The `go` line
   in `go.mod` is the single source of truth for the Go version: `go 1.25.4`, the locally
   installed toolchain.
 - **Entry point**: `cmd/gateway/main.go` — load config, build logger, build router,
@@ -40,9 +40,10 @@ machine, through `make verify` and git hooks.
   - The env contract (names, empty values, no values in errors) is ADR 0002's Decision.
     Secrets will only ever come from env vars.
   - **Invalid config fails fast.** Malformed YAML, an unknown key (the decoder runs with
-    `KnownFields(true)`), an invalid log level or an invalid duration makes the gateway
-    exit non-zero before it binds the port, with one JSON error line built as the Don't
-    below describes.
+    `KnownFields(true)`), an invalid log level, an invalid duration (including zero or
+    negative) or an invalid listen address (the port must be an integer from 0 to
+    65535) makes the gateway exit non-zero before it binds the port, with one JSON error
+    line built as the Don't below describes.
   - Errors that happen before config loads go through a bootstrap zap logger at `info`,
     so they are JSON too.
 - **Logging**: zap, structured JSON to stdout; level from config.
@@ -50,6 +51,8 @@ machine, through `make verify` and git hooks.
   - Panic recovery is zap-based; chi's `middleware.Recoverer` is not used.
   - `http.Server.ErrorLog` is routed through zap.
   - Nothing writes plain text to stdout or stderr.
+  - That rule excludes Go runtime crash output (unrecovered panics outside handlers,
+    fatal errors, SIGQUIT dumps), which the runtime writes directly; see `plan.md` Risks.
 - **Router**: chi, with request-ID and panic-recovery middleware.
 - **Request ID**: always generated server-side; an incoming `X-Request-Id` is ignored as
   untrusted. The generated ID is returned in the `X-Request-Id` response header and
@@ -71,6 +74,7 @@ machine, through `make verify` and git hooks.
     fetch refspec (only if it is not already present), and installs the pinned
     golangci-lint binary into `./bin`. It does not push notes.
   - `make build`, `make run`
+  - `make image`: builds the Docker image, passing the version as a build arg
   - `make test`: `go test -race ./...`
   - `make lint`: golangci-lint with a committed config
   - `make verify`: lint, then test; non-zero exit on any failure
@@ -141,10 +145,12 @@ machine, through `make verify` and git hooks.
   (ADR 0002) without a new ADR.
 - Don't use a global logger or global config. Pass them in, because later features must
   be testable in isolation.
-- Don't log a parser's `err.Error()` for config failures. yaml.v3 and
-  `time.ParseDuration` both put the value in their messages. Build the error line from the
-  key, its source and a fixed reason (`invalid duration`, `unknown key`,
-  `invalid level`). For malformed YAML, log only the file path and line number.
+- Don't log the `err.Error()` of any parser or validator for config failures.
+  yaml.v3, `time.ParseDuration`, `strconv.Atoi` and `net.SplitHostPort` all put the
+  value in their messages. Build the error line from the key, its source and a fixed
+  reason (for example `unknown key`, `invalid duration`). The full set of reasons is
+  defined in plan.md's Config steps. For malformed YAML, log only the file path and
+  line number.
 - Don't log headers or bodies in the request log line (PLAN.md §5: secrets never land in
   storage, and logs count).
 - Don't let the pre-push hook edit files (no auto-format, no stash on push). It only checks.
