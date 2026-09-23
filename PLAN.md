@@ -115,7 +115,7 @@ Each phase maps to one or more features, and each feature gets its own spec fold
 
 | # | Phase | Goal | Done when |
 |---|---|---|---|
-| 0 | Foundation | Repo, AGENTS.md, spec templates, docker-compose, CI (lint, test, `-race`), logging, `/healthz` | CI green on an empty feature PR |
+| 0 | Foundation | Repo, AGENTS.md, spec templates, docker-compose, local gate (`make verify`: lint, test, `-race`; pre-push hook), logging, `/healthz` | On a fresh clone, after `make setup`, `make verify` passes, and a push containing a malformed commit subject or a failing check is rejected |
 | 1 | Core + first protocol | Adapter/profile interfaces; Anthropic Messages passthrough (`/v1/messages`, `count_tokens`, `/v1/models`, `HEAD /api/hello`); Claude Code profile | A real Claude Code session (API key **and** subscription) runs through the gateway with no behaviour difference |
 | 2 | Capture + canonical events | Async raw capture with redaction; Anthropic parser → canonical events | Every exchange is stored and parsed; killing the store doesn't break the client |
 | 3 | Second protocol (the agnosticism proof) | OpenAI Chat Completions adapter + Cursor profile; gateway token auth; documented tunnel setup | Cursor traffic produces the **same canonical events**, with zero changes to the core or the Anthropic adapter |
@@ -337,5 +337,5 @@ The skill gets the message right when it is written. The repo assumes it wasn't:
 - A **`commit-msg` hook** at `.githooks/commit-msg`, enabled with `git config core.hooksPath .githooks`:
   - rejects a subject that doesn't match `^(feat|fix|refactor|perf|test|docs|build|ci|chore|revert)(\([a-z0-9-]+\))!?: .+$`, ends in a period, or runs over 72 characters;
   - rejects any `Co-authored-by:` or AI-attribution trailer.
-- **CI repeats the same check** on every commit in a PR, so a skipped hook can't sneak through.
+- A **`pre-push` hook** at `.githooks/pre-push` re-runs `.githooks/commit-msg` on every commit in the pushed range, so a commit made with `git commit --no-verify` can't sneak through. There is no CI; this local gate replaces it ([ADR 0001](docs/decisions/0001-local-gate-instead-of-ci.md)).
 - Never bypass either with `--no-verify`.
