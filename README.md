@@ -8,7 +8,8 @@ and cost.
 It is **not** a harness — it never runs agents, executes tools or edits files — and it
 is not tied to one vendor.
 
-Status: **Phase 0** in progress. The gateway serves `/healthz`; see `specs/000-foundation/`.
+Status: **Phase 0** done; the gateway serves `/healthz` (see `specs/000-foundation/`).
+**Phase 1** is next.
 
 - `PLAN.md` — the one-page source of intent: goals, phases, stack rationale, open
   questions, commit conventions.

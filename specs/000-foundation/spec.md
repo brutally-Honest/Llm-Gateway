@@ -1,5 +1,5 @@
 ---
-status: approved
+status: done
 branch: chore/foundation
 ---
 

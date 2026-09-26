@@ -1,5 +1,5 @@
 ---
-status: draft
+status: draft  # draft | approved | done
 spec: ./spec.md
 plan: ./plan.md
 tasks: ./tasks.md

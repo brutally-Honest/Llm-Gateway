@@ -1,5 +1,5 @@
 ---
-status: draft
+status: draft  # draft | approved | done
 branch: NNN-slug
 ---
 
