@@ -1,0 +1,4 @@
+Spec: specs/001-core-and-anthropic-passthrough/spec.md (AC25)
+Why this approach: reword the README rather than exempt README files from the scanner, so the scan stays uniform.
+Trade-off / known limit: README line 10 still says 'bearer tokens' in lowercase; a case-insensitive Bearer-plus-token pattern could flag it. Not changed here.
+Verified by: case-insensitive grep for sk-ant, bearer, wrkspc, organization, account_uuid, org_id, @ and UUIDs over stream.sse, stream.headers and README.md: the only hit is that line 10 phrase.
