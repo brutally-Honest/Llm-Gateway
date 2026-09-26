@@ -31,13 +31,20 @@ Stop and report BLOCKED instead of guessing when:
 - the spec or plan doesn't say what to do, or says two things;
 - you'd need a new dependency without an ADR;
 - `make verify` still fails after 3 honest attempts.
-Before stopping, add a numbered `open` query to `research.md` and append
-`(blocked: Qn)` to the task line.
+Before stopping, leave the tree clean for whoever comes next:
+1. Add a numbered `open` query to `research.md` and append `(blocked: Qn)` to the
+   task line in `tasks.md`.
+2. Commit only those two files: `docs(repo): record Qn blocking <task id>`.
+3. Stash everything else you changed, untracked files included:
+   `git stash push -u -m "<task id> blocked on Qn"`. The tree was clean when you
+   started, so the stash holds exactly your attempt. Never delete it.
 
 If the task is a manual check you cannot run here (Docker missing, needs a second
-machine, needs a browser), do not fake it. Report NEEDS-HUMAN with what to run.
+machine, needs a browser), do not fake it. If `make verify` passes, commit the code
+you wrote without ticking the task; otherwise stash it as above. Report NEEDS-HUMAN
+with what to run.
 
 Your final message is exactly one of these, plus up to 5 lines of detail:
 - `DONE <task id> <short sha>`
-- `BLOCKED <task id> Qn`
-- `NEEDS-HUMAN <task id>`
+- `BLOCKED <task id> Qn <short sha of the docs commit>`
+- `NEEDS-HUMAN <task id> <short sha, or "stashed">`

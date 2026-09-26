@@ -30,7 +30,9 @@ small. Pass file paths and short findings, not file contents.
 - a reviewer returns `ESCALATE`;
 - a task hits its fix-round limit;
 - a blocked task is needed by the next one;
-- `make verify` is red at the start of a task (the previous one broke something).
+- `make verify` is red at the start of a task (the previous one broke something);
+- the working tree is not clean at the start of a task (the previous one left
+  something behind).
 
 ## When every task is done or skipped
 Dispatch **reviewer** once more with "review `git diff main...HEAD` against the whole
