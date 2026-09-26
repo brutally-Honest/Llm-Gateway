@@ -371,7 +371,10 @@ func TestRun_BindErrors(t *testing.T) {
 			if len(lines) != 1 || lines[0]["msg"] != "cannot bind" || lines[0]["key"] != "listen_addr" || lines[0]["reason"] != tc.reason {
 				t.Errorf("lines = %v, want one cannot bind line with reason %q", lines, tc.reason)
 			}
-			noValue(t, g, "7197")
+			// The whole address, not the bare port: "7197" can turn up in a
+			// timestamp's nanoseconds.
+			noValue(t, g, "127.0.0.1:7197")
+			noValue(t, g, "127.0.0.1")
 		})
 	}
 }
