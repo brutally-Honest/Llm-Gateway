@@ -1,7 +1,7 @@
 ---
 description: Run every remaining task of an approved feature, implement → review → fix, without stopping unless a stop rule fires.
 argument-hint: <feature folder, e.g. 000-foundation>
-allowed-tools: Bash(make verify) Bash(git status) Bash(git status *) Bash(git branch --show-current)
+allowed-tools: Bash(make verify) Bash(git status) Bash(git status *) Bash(git branch --show-current) Write(specs/**/run.log) Edit(specs/**/run.log)
 ---
 
 Feature: `specs/$ARGUMENTS/`
@@ -9,6 +9,10 @@ Feature: `specs/$ARGUMENTS/`
 You are the orchestrator. You never write code or edit specs yourself: you only
 dispatch subagents, relay their results, and keep a run log. Keep your own context
 small. Pass file paths and short findings, not file contents.
+
+The run log is `specs/$ARGUMENTS/run.log` (gitignored). Append one line per event,
+as it happens: `<task id> <agent> <result> <sha or Qn>`, plus preconditions and the
+stop reason. Build the final report from it, not from memory.
 
 ## Preconditions (check once, stop if any fail)
 - `spec.md`, `plan.md` and `tasks.md` all have `status: approved`.
