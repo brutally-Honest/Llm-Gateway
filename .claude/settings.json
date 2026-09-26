@@ -1,4 +1,15 @@
 {
   "includeCoAuthoredBy": false,
-  "permissions": { "defaultMode": "acceptEdits" }
+  "permissions": {
+    "allow": [
+      "Bash(make verify)",
+      "Bash(go test *)",
+      "Bash(git status)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git show *)",
+      "Bash(git log *)",
+      "Bash(git notes show *)"
+    ]
+  }
 }
