@@ -79,16 +79,17 @@ listed on each of them.
   task. Done: `TestRun_StartupLine`, `TestRun_DefaultsWhenNoConfig` and
   `TestRun_DefaultListenAddr` pass, and `make build` succeeds. Commit:
   `feat(server): add the gateway entry point` (AC3, AC4, AC5) (shaped: Q7)
-- [ ] T7 — Config and env paths through `run`: flag errors and `*config.Error` logged
-  as one JSON line with exit `2` before `listen`; bind errors (`address in use`,
-  `bind failed`) with exit `1`. Done: `TestRun_EnvOverridesFile`, `TestRun_LogLevel`,
+- [x] T7 — Config and env paths through `run`: flag errors and `*config.Error` logged
+  as one JSON line with exit `2` before `listen`; `-h` / `-help` logs one `usage`
+  line and exits `0` before config loads; bind errors (`address in use`,
+  `bind failed`) with exit `1`. Done: `TestRun_Help`, `TestRun_EnvOverridesFile`, `TestRun_LogLevel`,
   `TestRun_UnknownKey`, `TestRun_InvalidEnvLogLevel`,
   `TestRun_InvalidEnvShutdownTimeout`, `TestRun_EmptyEnvIsUnset`,
   `TestRun_EmptyConfigFile`, `TestRun_InvalidAddressFailsBeforeBind` and
   `TestRun_BindErrors` pass, and the AC8–AC10 tests find no sentinel in the output.
   Commit:
   `feat(server): fail fast on invalid config in run` (AC6, AC7, AC8, AC9, AC10, AC11,
-  AC12)
+  AC12) (shaped: Q7)
 - [ ] T8 — Logging, secrets and panics through `run`: `deps.mount` wired into
   `server.New`. Done:
   `TestRun_AllLinesJSON`, `TestRun_SecretsNotLogged` and `TestRun_PanicRecovered`

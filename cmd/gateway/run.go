@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"syscall"
 
 	"go.uber.org/zap"
 
@@ -40,7 +41,13 @@ func run(ctx context.Context, d deps) int {
 	fs := flag.NewFlagSet("gateway", flag.ContinueOnError)
 	fs.SetOutput(io.Discard) // the flag package never prints usage text
 	configPath := fs.String("config", "", "path to the config file (default ./config.yaml if present)")
-	if err := fs.Parse(d.args); err != nil {
+	switch err := fs.Parse(d.args); {
+	case errors.Is(err, flag.ErrHelp):
+		// -h or -help: usage as one JSON line; nothing is loaded or bound.
+		boot.Info("usage", zap.Strings("flags", []string{"-config <path>"}))
+		return exitOK
+	case err != nil:
+		// The flag package's message can quote the value, so only the fact is logged.
 		boot.Error("invalid flags")
 		return exitConfig
 	}
@@ -49,12 +56,16 @@ func run(ctx context.Context, d deps) int {
 	if err != nil {
 		var ce *config.Error
 		if errors.As(err, &ce) {
-			boot.Error("invalid config",
+			// Built from the error's fields, never err.Error() of a parser (ADR 0002).
+			fields := []zap.Field{
 				zap.String("key", ce.Key),
 				zap.String("source", ce.Source),
 				zap.String("reason", ce.Reason),
-				zap.Int("line", ce.Line),
-			)
+			}
+			if ce.Line > 0 {
+				fields = append(fields, zap.Int("line", ce.Line))
+			}
+			boot.Error("invalid config", fields...)
 		} else {
 			boot.Error("invalid config")
 		}
@@ -65,7 +76,13 @@ func run(ctx context.Context, d deps) int {
 
 	ln, err := d.listen("tcp", cfg.ListenAddr)
 	if err != nil {
-		log.Error("cannot bind", zap.String("key", "listen_addr"))
+		// The address is valid (config checked it), so this is the OS refusing. The
+		// error names the address, so only a fixed reason is logged.
+		reason := "bind failed"
+		if errors.Is(err, syscall.EADDRINUSE) {
+			reason = "address in use"
+		}
+		log.Error("cannot bind", zap.String("key", "listen_addr"), zap.String("reason", reason))
 		return exitRuntime
 	}
 

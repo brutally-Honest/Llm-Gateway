@@ -137,3 +137,7 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   `invalid flags` (`flag.ErrHelp` is a flag error); T7's flag handling is where that
   is decided.
 - Outcome: no plan change; each later task's Done list still proves its branch.
+- 2026-09-26: decided for T7: `-h` / `-help` (`flag.ErrHelp`) exits `0` with one
+  `info` line, `msg` `usage`, field `flags: ["-config <path>"]`. Nothing is loaded or
+  bound. Every other flag error stays `invalid flags`, exit `2`, with no flag-package
+  text (it can quote the value). `TestRun_Help` pins it; plan.md step 2 updated.

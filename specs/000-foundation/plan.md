@@ -30,8 +30,11 @@ os.Exit(code)
 order:
 1. Build the bootstrap logger (zap, JSON, `info`, to `deps.stdout`).
 2. Parse flags with `flag.NewFlagSet(..., flag.ContinueOnError)` and
-   `SetOutput(io.Discard)`, so the `flag` package never prints usage text. A flag
-   error is logged as one JSON line. Exit `2`.
+   `SetOutput(io.Discard)`, so the `flag` package never prints usage text. `-h` /
+   `-help` (`flag.ErrHelp`) logs one `info` line, `usage` with
+   `flags: ["-config <path>"]`, and exits `0` before config loads (research Q7). Any
+   other flag error is logged as one JSON line, `invalid flags`, without the flag
+   package's message. Exit `2`.
 3. Call `config.Load`. On error, log one JSON line from `*config.Error`'s fields.
    Exit `2`. `listen` has not been called yet.
 4. Build the real logger at the configured level.
@@ -53,7 +56,7 @@ order:
 
 | Exit | Meaning |
 |---|---|
-| `0` | clean shutdown |
+| `0` | clean shutdown, or `-h` / `-help` |
 | `1` | runtime failure: bind, serve, or shutdown timeout |
 | `2` | bad flags or invalid config (nothing was bound) |
 

@@ -50,6 +50,8 @@ type options struct {
 	// realListen binds the address run asks for. Otherwise the address is recorded
 	// and 127.0.0.1:0 is bound instead, so no test binds 7197 (plan.md, Listener).
 	realListen bool
+	// listenErr, if set, is what listen returns instead of binding.
+	listenErr error
 }
 
 func startGateway(t *testing.T, o options) *gateway {
@@ -67,6 +69,9 @@ func startGateway(t *testing.T, o options) *gateway {
 			g.mu.Lock()
 			g.listen = append(g.listen, addr)
 			g.mu.Unlock()
+			if o.listenErr != nil {
+				return nil, o.listenErr
+			}
 			if o.realListen {
 				return net.Listen(network, addr)
 			}
@@ -123,14 +128,27 @@ func (g *gateway) waitLine(msg string) map[string]any {
 func (g *gateway) stop() int {
 	g.t.Helper()
 	g.cancel()
+	return g.wait()
+}
+
+// wait returns run's exit code without cancelling, for runs that exit on their own.
+func (g *gateway) wait() int {
+	g.t.Helper()
 	select {
 	case code := <-g.code:
 		g.code <- code // for Cleanup
 		return code
 	case <-time.After(5 * time.Second):
-		g.t.Fatal("run did not return after cancel")
+		g.t.Fatal("run did not return")
 		return -1
 	}
+}
+
+// listened returns the addresses run asked listen for.
+func (g *gateway) listened() []string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return slices.Clone(g.listen)
 }
 
 // AC3: one startup line with version, the bound address and the config source.
@@ -200,10 +218,7 @@ func TestRun_DefaultListenAddr(t *testing.T) {
 	g := startGateway(t, options{})
 	g.waitLine("gateway started")
 
-	g.mu.Lock()
-	got := slices.Clone(g.listen)
-	g.mu.Unlock()
-	if !slices.Equal(got, []string{"127.0.0.1:7197"}) {
+	if got := g.listened(); !slices.Equal(got, []string{"127.0.0.1:7197"}) {
 		t.Errorf("listen addresses = %v, want [127.0.0.1:7197]", got)
 	}
 }
