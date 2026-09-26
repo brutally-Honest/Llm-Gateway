@@ -1,0 +1,4 @@
+Spec: specs/001-core-and-anthropic-passthrough (AC1, AC2, AC5, AC6, AC7)
+Why this approach: settings became settingsFor(specs) so config names no provider; the file walk goes one level under upstreams and reports dotted keys with lines.
+Trade-off / known limit: cmd/gateway/run.go passes an interim literal anthropic spec so 000 TestRun_EmptyConfigFile (which loads config.example.yaml) still passes; T15 replaces it with the adapter-derived list. Parse failure of base_url returns invalid url already; T2 adds the full validation. Defaults() has no Upstreams (nil); Load fills them from specs.
+Verified by: make verify; the four named tests failed first with undefined config.UpstreamSpec.
