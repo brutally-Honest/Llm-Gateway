@@ -235,7 +235,7 @@ Routes: `GET /healthz` gives `200`, `Content-Type: application/json` and
 | `test/githooks/` | Go tests for the pre-push hook and `setup-git` (package holds tests only, see Testing). Go ignores `.githooks/` because of the leading dot, so the tests cannot live next to the hooks |
 | `.githooks/pre-push` | New |
 | `Makefile` | `setup` (`setup-git`, `setup-lint`), `build`, `run`, `test`, `lint`, `verify`, `image` |
-| `.golangci.yml` | v2 format (`version: "2"`) |
+| `.golangci.yml` | v2 format (`version: "2"`). forbidigo bans `os.Stdout`/`os.Stderr` except in `cmd/gateway/main.go` and `internal/logging/` |
 | `Dockerfile`, `.dockerignore` | Multi-stage static build. `.dockerignore` keeps out `.git`, `bin/`, `config.yaml` and `.env*` |
 | `docker-compose.yml` | Gateway service only |
 | `config.example.yaml` | The three keys, commented, with their defaults |

@@ -25,6 +25,8 @@ setup-lint:
 	else \
 		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/v$(GOLANGCI_LINT_VERSION)/install.sh | \
 			sh -s -- -b $(BIN) v$(GOLANGCI_LINT_VERSION); \
+		$(GOLANGCI_LINT) version 2>/dev/null | grep -q 'has version $(GOLANGCI_LINT_VERSION) ' || \
+			{ echo 'golangci-lint install failed' >&2; exit 1; }; \
 	fi
 
 test:

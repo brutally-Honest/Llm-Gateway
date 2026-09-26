@@ -15,9 +15,12 @@ linters:
           msg: log through zap; nothing writes plain text
         - pattern: ^(print|println)$
           msg: log through zap; nothing writes plain text
-        - pattern: ^log\.(Print|Fatal|Panic).*$
+        - pattern: ^log\.(Print|Fatal|Panic|Default|New|SetOutput).*$
           pkg: ^log$
           msg: log through zap; nothing writes plain text
+        - pattern: ^os\.(Stdout|Stderr)$
+          pkg: ^os$
+          msg: only cmd/gateway/main.go and internal/logging touch stdout/stderr
         # No global logger (spec 000, Don't).
         - pattern: ^zap\.(L|S|ReplaceGlobals)$
           pkg: ^go\.uber\.org/zap$
@@ -25,6 +28,11 @@ linters:
   exclusions:
     rules:
       - path: _test\.go
+        linters:
+          - forbidigo
+      # The two places allowed to hold stdout/stderr. The zap-globals ban still applies.
+      - path: ^(cmd/gateway/main\.go|internal/logging/)
+        text: os\.(Stdout|Stderr)
         linters:
           - forbidigo
 
