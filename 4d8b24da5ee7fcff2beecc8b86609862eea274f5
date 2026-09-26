@@ -1,0 +1,2 @@
+Spec: specs/000-foundation/spec.md (AC24, this-repo half; the fresh-clone half is T18)
+Verified by, in this repo on 2026-09-26: make setup exit 0 (golangci-lint 2.13.2 already installed; go mod download); make verify exit 0 (0 issues; all five packages ok); make run built bin/gateway (version d1794f6-dirty), logged gateway started on 127.0.0.1:7197 with config_source defaults and env_overrides [], answered curl -si http://127.0.0.1:7197/healthz with 200 {"status":"ok"} and an X-Request-Id, and on SIGTERM logged gateway stopped.
