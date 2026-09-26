@@ -302,6 +302,7 @@ const (
 	AuthNone   AuthKind = "none"
 	AuthAPIKey AuthKind = "api_key"
 	AuthBearer AuthKind = "bearer"
+	AuthBoth   AuthKind = "both" // an API key and a bearer token are both present (Q15)
 )
 
 const ClientUnknown = "unknown"
@@ -455,7 +456,7 @@ hang, or stall. Log lines are read as JSON from a goroutine-safe buffer, as in 0
 | 34 | `TestCore_NoProviderOrClientIdentifiers`. It scans every file in `internal/core/` except its own, which has to hold the words | `internal/core/purity_test.go` |
 | 35 | `TestCore_TestAdapterAndProfileNeedNoCoreChange` | `internal/core/registry_test.go` |
 | 36 | `TestAccessLog_ProxyFields` | `internal/core/proxy_test.go` |
-| 37 | `TestAccessLog_AuthKind` | `internal/protocols/anthropic/adapter_test.go` |
+| 37 | `TestAccessLog_AuthKind` (`api_key`, `bearer`, `both`, `none`; `both` from Q15) | `internal/protocols/anthropic/adapter_test.go` |
 | 38 | `TestAccessLog_GatewayErrorField` | `internal/core/proxy_test.go` |
 | 39 | `TestProxy_SecretsNotLogged`: through `run`, real adapter, a sentinel in `x-api-key`, `Authorization`, the query and the body; success, 502, and a panicking test route | `cmd/gateway/run_proxy_test.go` |
 | 40 | `TestRun_ShutdownWaitsForStream`: a real proxied stream, shutdown started mid-stream, exit `0` | `cmd/gateway/run_shutdown_test.go` |

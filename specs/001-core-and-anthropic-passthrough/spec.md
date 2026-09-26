@@ -324,7 +324,7 @@ Client profiles and core
 Logging and secrets
 - **AC36** `TestAccessLog_ProxyFields` — the `request` line has `protocol`, `client`,
   `stream` and `ttfb_ms` for a streamed and a non-streamed request.
-- **AC37** `TestAccessLog_AuthKind` — `api_key`, `bearer` and `none`.
+- **AC37** `TestAccessLog_AuthKind` — `api_key`, `bearer`, `both` and `none`.
 - **AC38** `TestAccessLog_GatewayErrorField` — `gateway_error` on a `502` and a `504`,
   and absent on upstream errors.
 - **AC39** `TestProxy_SecretsNotLogged` — a sentinel in `x-api-key`, `Authorization`,

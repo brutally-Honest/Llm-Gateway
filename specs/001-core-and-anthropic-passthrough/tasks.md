@@ -254,7 +254,9 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   `client_body`), `TestProxy_UpstreamErrorsVerbatim` (`429`, `500` and `529` with
   `anthropic-ratelimit-*` headers, all byte-identical), and `TestAccessLog_AuthKind`
   (`api_key`, `bearer`, `both` when `x-api-key` and `Authorization` are both present,
-  `none`). Done:
+  `none`). T14 also adds `AuthBoth AuthKind = "both"` to `internal/core/adapter.go`,
+  next to `AuthNone`, `AuthAPIKey` and `AuthBearer`, so `AuthKind` can report it.
+  Done:
   those pass under `-race`. Commit: `feat(anthropic): add the messages adapter` (AC9,
   AC10, AC13, AC17, AC26, AC27, AC28, AC37, AC47) (shaped: Q1, Q2, Q3, Q15, Q18)
 
