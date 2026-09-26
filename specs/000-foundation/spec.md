@@ -42,8 +42,8 @@ machine, through `make verify` and git hooks.
     Secrets will only ever come from env vars.
   - **Invalid config fails fast.** Malformed YAML, an unknown key (the decoder runs with
     `KnownFields(true)`), an invalid log level, an invalid duration (including zero or
-    negative) or an invalid listen address (the port must be an integer from 0 to
-    65535) makes the gateway exit non-zero before it binds the port, with one JSON error
+    negative) or an invalid listen address (an empty host, or a port that is not an
+    integer from 0 to 65535) makes the gateway exit non-zero before it binds the port, with one JSON error
     line built as the Don't below describes.
   - Errors that happen before config loads go through a bootstrap zap logger at `info`,
     so they are JSON too.

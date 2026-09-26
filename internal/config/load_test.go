@@ -293,7 +293,7 @@ func TestLoad_InvalidDuration(t *testing.T) {
 }
 
 func TestLoad_InvalidAddress(t *testing.T) {
-	for _, v := range []string{"localhost", ":http", ":-1", ":65536", ":99999"} {
+	for _, v := range []string{"localhost", ":7197", ":http", "127.0.0.1:-1", "127.0.0.1:65536", "127.0.0.1:99999"} {
 		checkInvalid(t, "listen_addr", v, reasonInvalidAddress)
 	}
 	// An empty env var is unset, so an empty address can only come from the file.
@@ -301,7 +301,7 @@ func TestLoad_InvalidAddress(t *testing.T) {
 	if e := loadErr(t, Options{Path: path}); e.Reason != reasonInvalidAddress {
 		t.Errorf("empty address: Reason = %q, want %q", e.Reason, reasonInvalidAddress)
 	}
-	for _, v := range []string{"127.0.0.1:0", ":7197", "0.0.0.0:65535"} {
+	for _, v := range []string{"127.0.0.1:0", "0.0.0.0:7197", "[::1]:7197", "0.0.0.0:65535"} {
 		checkValid(t, "listen_addr", v)
 	}
 }

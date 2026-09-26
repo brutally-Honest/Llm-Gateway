@@ -102,8 +102,10 @@ func envName(key string) string {
 }
 
 func setListenAddr(c *Config, v string) string {
-	_, port, err := net.SplitHostPort(v)
-	if err != nil {
+	host, port, err := net.SplitHostPort(v)
+	// An empty host binds every interface. That must be written out as 0.0.0.0 or
+	// [::], so it is never the result of a missing host.
+	if err != nil || host == "" {
 		return reasonInvalidAddress
 	}
 	// Base 10 and 16 bits: an integer from 0 to 65535, so named ports are rejected.

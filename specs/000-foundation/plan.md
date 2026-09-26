@@ -153,9 +153,10 @@ with no wrapped parser error, so the caller has nothing unsafe to log.
      shutdown an immediate timeout.
    - `log_level`: one of `debug`, `info`, `warn`, `error` (case-insensitive). Anything
      else gives `invalid level`.
-   - `listen_addr`: `net.SplitHostPort` must succeed, and the port must parse with
-     `strconv.Atoi` as an integer from 0 to 65535. Otherwise the reason is
-     `invalid address`. Port `0` stays valid, because tests bind `127.0.0.1:0`.
+   - `listen_addr`: `net.SplitHostPort` must succeed, the host must not be empty, and
+     the port must parse with `strconv.ParseUint(port, 10, 16)`, an integer from 0 to
+     65535. Otherwise the reason is `invalid address`. An empty host (`:7197`) would
+     bind every interface; that must be written out as `0.0.0.0` or `[::]`. Port `0` stays valid, because tests bind `127.0.0.1:0`.
      Named ports (`:http`) are rejected by the integer rule. This fails fast with the
      other config errors, instead of at bind.
 6. **Env.** For each key, `LookupEnv(GATEWAY_...)`. Set and non-empty overrides the value,
@@ -246,7 +247,7 @@ Routes: `GET /healthz` gives `200`, `Content-Type: application/json` and
 | `.golangci.yml` | v2 format (`version: "2"`). forbidigo bans `os.Stdout`/`os.Stderr` except in `cmd/gateway/main.go` and `internal/logging/` |
 | `Dockerfile`, `.dockerignore` | Multi-stage static build. `.dockerignore` keeps out `.git`, `bin/`, `config.yaml` and `.env*` |
 | `docker-compose.yml` | Gateway service only |
-| `config.example.yaml` | The three keys, commented, with their defaults |
+| `config.example.yaml` | The three keys live (not commented out) at their defaults, each with a comment. `TestLoad_ExampleFileIsDefaults` needs real values to catch drift |
 | `.gitignore` | Adds `/config.yaml` (root only, so a future `testdata/config.yaml` is not ignored) |
 | `README.md` | Setup section points to `make setup` |
 | `AGENTS.md` | `install: make setup`, `verify: make verify`, `run: make run` |
@@ -385,9 +386,10 @@ These tests run inside `make verify`. They cost well under a second each, and `s
   `config_source` is the path, not `defaults`.
 - `internal/config` `TestLoad_InvalidDuration`: `abc`, `0s` and `-5s`, from the file and
   from env, each give `invalid duration` naming the key and source.
-- `internal/config` `TestLoad_InvalidAddress`: `localhost` (no port), `:http`
-  (named), `:-1`, `:65536` and `:99999` give `invalid address`. `127.0.0.1:0`,
-  `:7197` and `0.0.0.0:65535` load. Each is checked from the file and from env.
+- `internal/config` `TestLoad_InvalidAddress`: `localhost` (no port), `:7197` (empty
+  host), `:http` (named), `127.0.0.1:-1`, `127.0.0.1:65536` and `127.0.0.1:99999`
+  give `invalid address`. `127.0.0.1:0`, `0.0.0.0:7197`, `[::1]:7197` and
+  `0.0.0.0:65535` load. Each is checked from the file and from env.
 - `cmd/gateway` `TestRun_InvalidAddressFailsBeforeBind`: exit `2`, `listen` is never
   called, and the value is absent from the output.
 - `cmd/gateway` `TestRun_BindErrors`: an injected `listen` returning an error that

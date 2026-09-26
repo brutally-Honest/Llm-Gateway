@@ -46,8 +46,9 @@ listed on each of them.
 
 - [x] T3 — `internal/config`: `Config`, `Options`, `Source`, `Error`, `Defaults`,
   `Load` (Config steps 1–6); adds `go.yaml.in/yaml/v3 v3.0.5` to `go.mod`. Also
-  `config.example.yaml` (the three keys, commented, at their defaults), because
-  `TestLoad_ExampleFileIsDefaults` in this task reads it. Done: `TestDefaults`,
+  `config.example.yaml` (the three keys live at their defaults, not commented out,
+  each with a comment), because `TestLoad_ExampleFileIsDefaults` in this task reads
+  it and needs real values to catch drift. Done: `TestDefaults`,
   `TestLoad_UnknownKey`, `TestLoad_ErrorsNeverContainValue` (every reason in steps
   1–5), `TestLoad_MalformedYAMLReportsLine`, `TestLoad_EmptyFile`,
   `TestLoad_ExampleFileIsDefaults`, `TestLoad_InvalidDuration` and
