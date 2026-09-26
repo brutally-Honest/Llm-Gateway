@@ -1,0 +1,6 @@
+Spec: specs/001-core-and-anthropic-passthrough/spec.md (AC47, AC48)
+Research: specs/001-core-and-anthropic-passthrough/research.md (Q9-Q13)
+Why this approach: request body wrapped in a read-through watcher to tell a client body error (400 client_body) from an upstream failure; response body watched so Meta.Settle can tell upstream_aborted from client_disconnected. Settle runs in accessLog's defer, not a recover in the proxy, so real panics keep their stack.
+Alternatives rejected: classifying from the error string; recover(ErrAbortHandler) in the proxy.
+Trade-off / known limit: a client write failure with a still-live context sets neither flag; two watchers sit on the byte path (guarded by AC20, AC23, AC24).
+Verified by: docs only.
