@@ -291,8 +291,9 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
 
 - [ ] T18 — `test/conventions/fixtures_test.go`: walks every `testdata` directory in the
   module and fails on `sk-ant-` keys, `Bearer` followed by a token, any UUID, any email
-  address, and the words `organization`, `account_uuid` and `org_id`. The scanner is a
-  function the test calls, so it can be proved on seeded input. Tests first:
+  address, any `wrkspc_` workspace ID, and the words `organization`,
+  `account_uuid` and `org_id`. The scanner is a function the test calls, so it can be
+  proved on seeded input. Tests first:
   `TestFixtureScanner_FlagsEachIdentifier` (a temp directory seeded with one of each
   identifier, each flagged, and a clean file passes) and `TestFixtures_NoIdentifiers`
   (the real tree; passes vacuously until T21 adds a fixture). Done: both pass. Commit:
@@ -326,7 +327,7 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   skips the test. Test first: `TestProxy_GoldenAnthropicStreamReplay`. Done: it passes
   under `-race`, and `TestFixtures_NoIdentifiers` passes over the real fixture. Commit:
   `test(anthropic): replay the golden stream through the gateway` (AC24, AC25)
-  (shaped: Q10) (blocked: Q14)
+  (shaped: Q10) (shaped: Q14)
 
 ## Manual evidence (no commit; output goes into the PR as evidence)
 

@@ -207,7 +207,7 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
 - Outcome: plan: no change (already the working default).
 
 ## Q14 — Who records and commits the golden fixture, given an implementer cannot?
-- Status: open     Level: limit
+- Status: answered     Level: limit
 - Blocks / shapes: AC24, AC25; the golden-replay task (T21) in tasks.md
 - Context: 2026-09-26. Plan "Golden fixture" steps 1–4 record one real stream through
   the throwaway recording proxy, driven by a logged-in Claude Code session (Q10). An
@@ -221,6 +221,11 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   commits `internal/protocols/anthropic/testdata/{stream.sse,stream.headers,README.md}`
   as `test(anthropic): record the golden stream fixture`. T21 is ordered after the docs
   page and stops as BLOCKED until those files exist. Nothing is faked.
+- 2026-09-26 (owner): Answered: the owner recorded and committed the fixture, as the
+  working default has it. `internal/protocols/anthropic/testdata/{stream.sse,
+  stream.headers,README.md}` landed in `8662b4d` as `test(anthropic): add the golden
+  stream fixture`. T21 now adds only the replay test.
+- Outcome: tasks: T21 changed from `(blocked: Q14)` to `(shaped: Q14)`.
 
 ## Q15 — Which auth kind does the Anthropic adapter report for unusual header combinations?
 - Status: open     Level: flow
