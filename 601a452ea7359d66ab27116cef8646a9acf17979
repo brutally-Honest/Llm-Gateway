@@ -1,0 +1,2 @@
+Why this approach: run logs the startup line after the bind and before it selects on ctx, so once listen has been called, stop() cannot return before that line is written; the sleeps added nothing.
+Verified by: go test -race -count=20 ./cmd/gateway/ passed (21.0s).
