@@ -88,7 +88,7 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   channel delivers `ErrPanicked`, and the test process keeps running). Done: it passes
   under `-race`, and every existing `TestRun_*` test still passes. Commit:
   `feat(logging): add a recovering goroutine helper` (AC42)
-- [ ] T5 — `test/conventions/nobarego_test.go` (a new repo-shape package, like
+- [x] T5 — `test/conventions/nobarego_test.go` (a new repo-shape package, like
   `test/githooks`): an AST walk over every non-`_test.go` file in the module that fails
   on a `go` statement outside `internal/logging/go.go`. It uses only `go/parser` from
   the standard library. Test first: `TestNoBareGoStatements`, which must first fail
