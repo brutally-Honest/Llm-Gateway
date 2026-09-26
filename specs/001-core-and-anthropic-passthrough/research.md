@@ -72,3 +72,129 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   base URL, and does it behave as it does direct?
 - Answer: untested.
 - Outcome: to be run as part of the manual checks (AC44–AC46).
+
+## Q5 — Does `ReverseProxy` with `Rewrite` forward the request exactly as the client sent it?
+- Status: answered     Level: technical
+- Blocks / shapes: nothing yet (tasks.md not written); shapes plan.md "Approach: request rewrite", AC8, AC14, AC16
+- Context: 2026-09-26. Read `net/http/httputil/reverseproxy.go` (go1.25.4) before
+  agreeing to `Rewrite` without `SetXForwarded`.
+- Question: what does `ReverseProxy` change on the outbound request before, or after,
+  our `Rewrite` runs?
+- Answer: three things, all before `Rewrite` sees the request, so a bare `SetURL` loses
+  them.
+  - It deletes the client's `Forwarded`, `X-Forwarded-For`, `X-Forwarded-Host` and
+    `X-Forwarded-Proto`. The spec says everything except hop-by-hop is forwarded, so a
+    client-sent one must reach upstream.
+  - It runs `cleanQueryParams` on `RawQuery`, which drops parameters it cannot parse
+    (a raw `;`, a bad `%zz`). AC8 wants the query byte-identical.
+  - It re-adds `Te: trailers` when the client sent it, although `TE` is hop-by-hop.
+  Confirmed with a throwaway program (`X-Forwarded-For: 9.9.9.9` and
+  `?a=1;b=2&c=%zz` in, empty `X-Forwarded-For` and empty query out).
+- Outcome: escalated → plan. `Rewrite` copies the four forwarding headers and
+  `RawQuery` back from `pr.In` and deletes `Te`. No spec change: the spec already asks
+  for exactly this behaviour.
+
+## Q6 — Does `ReverseProxy` overwrite the gateway's `X-Request-Id` with upstream's?
+- Status: answered     Level: technical
+- Blocks / shapes: nothing yet (tasks.md not written); shapes plan.md "Approach: response hook", AC19
+- Context: 2026-09-26. The plan agreed to "overwrite `X-Request-Id` in `ModifyResponse`".
+  000's `requestID` middleware already sets the gateway's ID on the response writer's
+  header map before the handler runs.
+- Question: what does `ReverseProxy` do when upstream's response also has `X-Request-Id`?
+- Answer: it appends. `copyHeader` uses `Header.Add`, so the client got
+  `[gateway upstream]`, two values (throwaway program). Setting the header on the
+  upstream response inside `ModifyResponse` would give two copies of the gateway's ID.
+- Outcome: escalated → plan. `ModifyResponse` deletes upstream's `X-Request-Id`
+  (`res.Header.Del`) and the gateway's, already on the writer, stands. Same outcome as
+  the spec, and `core` needs no request-ID accessor.
+
+## Q7 — Does 000's response wrapper keep `http.Flusher` under `ReverseProxy`?
+- Status: answered     Level: technical
+- Blocks / shapes: nothing yet (tasks.md not written); shapes plan.md "Approach: flushing", AC23
+- Context: 2026-09-26. `accessLog` wraps the writer with chi's
+  `middleware.NewWrapResponseWriter`. `ReverseProxy` flushes through
+  `http.NewResponseController`.
+- Question: does the wrapped writer still flush, so `FlushInterval: -1` works?
+- Answer: yes. For HTTP/1 chi returns a writer with `Flush`, and every wrapper has
+  `Unwrap`. In a throwaway run behind the wrapper, the second event arrived ~100 ms
+  after the first, as upstream sent it.
+- Outcome: none; 000's wrapper stays, and AC23 keeps it honest.
+
+## Q8 — What happens to the access log when the stream aborts mid-response?
+- Status: answered     Level: technical
+- Blocks / shapes: nothing yet (tasks.md not written); shapes plan.md "Approach: access log", AC30, AC31
+- Context: 2026-09-26. Read `reverseproxy.go` and ran a throwaway proxy; the client
+  closed its connection mid-stream.
+- Question: how does `ReverseProxy` end a response that fails after headers, and does
+  000's `accessLog` still write its line?
+- Answer: it panics with `http.ErrAbortHandler` (under a real `http.Server`), for an
+  upstream read error and for a client that left. In the run, the request context was
+  already cancelled when the panic reached the handler's `defer`. 000's `accessLog`
+  logs after `next.ServeHTTP` returns, not in a `defer`, and `recoverer` re-panics
+  `ErrAbortHandler`, so the line for exactly these requests is never written.
+- Outcome: escalated → plan. `accessLog` logs from a `defer`, and sets
+  `client_disconnected` from `r.Context().Err()` there.
+
+## Q9 — Does the upstream transport honour `HTTP_PROXY` / `HTTPS_PROXY`?
+- Status: open     Level: flow
+- Blocks / shapes: plan.md "Approach: transport"
+- Context: 2026-09-26. The spec fixes dial, TLS-handshake and header timeouts and
+  system roots, and says nothing about an outbound proxy. Go's default transport sends
+  upstream traffic through `HTTPS_PROXY` when it is set (loopback upstreams are exempt).
+- Question: should the gateway's upstream calls follow the standard proxy env vars, or
+  always connect directly?
+- Answer: open. Working default in the plan: `http.ProxyFromEnvironment`, because a
+  user behind a corporate proxy cannot reach Anthropic otherwise, and it is what a
+  direct Claude Code connection would do. Cost: an env var the gateway never logs can
+  change where prompts go. Needs a decision before the transport task.
+- Outcome: —
+
+## Q10 — How is the golden stream recorded without an API key?
+- Status: open     Level: limit
+- Blocks / shapes: AC24, AC25; the fixture task
+- Context: 2026-09-26. Q4: no API key is available. The spec's fixture has to be a
+  real Anthropic streaming response, scrubbed by hand.
+- Question: which credential and which client record the stream: a raw request with an
+  API key, or a Claude Code subscription session through a throwaway recording proxy?
+- Answer: open. Working default in the plan: the throwaway proxy from the Q1–Q3 probe,
+  extended to save the upstream response's status, headers and body. It forces
+  `Accept-Encoding: identity` so the saved body is readable text, and it works in
+  either auth mode. It is not the gateway, so the fixture cannot vouch for itself.
+- Outcome: —
+
+## Q11 — What does the gateway answer when the client's own request body fails?
+- Status: open     Level: technical
+- Blocks / shapes: plan.md "Approach: error handler", AC27
+- Context: 2026-09-26. `ReverseProxy` calls `ErrorHandler` with one error type for
+  every `RoundTrip` failure, and a failed read of the client's request body (the client
+  sent fewer bytes than its `Content-Length`, or reset the connection mid-upload) comes
+  back the same way. The spec's 502 says "DNS, connection or TLS failure".
+- Question: is a body-read failure a 502 `upstream_unreachable`, which would blame
+  upstream, or something else?
+- Answer: open. Working default in the plan: the spec's literal rule, so anything that
+  is not a timeout and not a cancelled context is a 502. When the client has already
+  gone, the cancelled-context branch usually catches it first.
+- Outcome: —
+
+## Q12 — Should the access line say that the upstream aborted mid-stream?
+- Status: open     Level: limit
+- Blocks / shapes: plan.md "Approach: access log", AC31
+- Context: 2026-09-26. After headers, `ReverseProxy` can only abort (Q8). The line then
+  has the upstream's `status` (for example 200) and a short `bytes`, with no field
+  saying the response was cut. The spec's field list has no such field, and
+  `gateway_error` is defined as errors the gateway created.
+- Question: is `status` plus `bytes` enough, or should the line gain a field?
+- Answer: open. Working default in the plan: add nothing, as the spec's list is
+  closed.
+- Outcome: —
+
+## Q13 — Which status does the access line show when the client left before any response?
+- Status: open     Level: limit
+- Blocks / shapes: plan.md "Approach: error handler", AC30
+- Context: 2026-09-26. On a cancelled context the error handler writes no body (agreed,
+  and the spec's `client_disconnected`). If it writes no status either, the chi wrapper
+  reports `0` and `net/http` would send an implicit `200` to nobody.
+- Question: what `status` should the line carry?
+- Answer: open. Working default in the plan: `WriteHeader(499)` with no body. 499 is the
+  usual "client closed request" convention and is never seen by anyone.
+- Outcome: —
