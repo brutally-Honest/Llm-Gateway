@@ -31,7 +31,7 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
 
 ## Config
 
-- [ ] T1 — `internal/config`: nested `upstreams.<name>.<field>` settings. `Options`
+- [x] T1 — `internal/config`: nested `upstreams.<name>.<field>` settings. `Options`
   gains `Upstreams []UpstreamSpec{Name, DefaultBaseURL}`, `Config` gains
   `Upstreams map[string]Upstream` (`BaseURL *url.URL`, `ConnectTimeout`,
   `TLSHandshakeTimeout`, `ResponseHeaderTimeout`; `base_url` is only `url.Parse`d

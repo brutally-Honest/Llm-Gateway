@@ -59,7 +59,10 @@ func run(ctx context.Context, d deps) int {
 		return exitConfig
 	}
 
-	cfg, src, err := config.Load(config.Options{Path: *configPath, DefaultPath: "config.yaml", LookupEnv: d.lookupEnv})
+	// Interim until T15 builds this list from the registered adapters: config.example.yaml
+	// already holds the block, so Load must know its name.
+	upstreams := []config.UpstreamSpec{{Name: "anthropic", DefaultBaseURL: "https://api.anthropic.com"}}
+	cfg, src, err := config.Load(config.Options{Path: *configPath, DefaultPath: "config.yaml", LookupEnv: d.lookupEnv, Upstreams: upstreams})
 	if err != nil {
 		var ce *config.Error
 		if errors.As(err, &ce) {
