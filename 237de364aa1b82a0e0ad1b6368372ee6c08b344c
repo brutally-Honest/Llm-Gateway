@@ -1,0 +1,4 @@
+Spec: specs/001-core-and-anthropic-passthrough/spec.md (AC37), research.md Q15
+Why this approach: Q15's answer (a6fc0b2) added 'both' only to the spec's auth-values line; the AC, the core interface in plan.md and the owning task still named three kinds, and internal/core (T6) has no constant for it.
+Purity: AuthBoth = "both" and its plan comment name no provider, client or provider header, so AC34's TestCore_NoProviderOrClientIdentifiers still holds once T14 adds it.
+Changes: spec.md AC37; plan.md AuthKind constants and AC evidence row 37; tasks.md T14 adds AuthBoth to internal/core/adapter.go.
