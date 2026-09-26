@@ -2,6 +2,7 @@
 name: reviewer
 description: Read-only review of one commit or a whole branch against the feature's spec. Never edits. Used by /run-feature.
 tools: Read, Grep, Glob, Bash
+model: opus
 hooks:
   PreToolUse:
     - matcher: "Bash"
