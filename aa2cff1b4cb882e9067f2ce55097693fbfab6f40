@@ -1,0 +1,3 @@
+Spec: specs/001-core-and-anthropic-passthrough (AC24, AC25)
+Research: Q14 answered; entry appended, nothing deleted.
+Trade-off / known limit: testdata/README.md contains the word organization (and names anthropic-organization-id), which the scanner in T18 bans; resolve before T18 lands.
