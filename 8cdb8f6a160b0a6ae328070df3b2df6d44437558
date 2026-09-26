@@ -1,0 +1,4 @@
+Spec: specs/000-foundation/spec.md (AC15, AC16); plan.md Entry point step 9
+Why this approach: Shutdown runs under a fresh context.WithTimeout(context.Background(), cfg.ShutdownTimeout), since the signal context is already cancelled; on DeadlineExceeded, in_flight is read once, then Close cuts the rest.
+Trade-off / known limit: in_flight counts handlers, not connections. AC6's shutdown_timeout case (a half-sent request) times out with in_flight 0: the connection is active, but no handler has started. TestRun_ShutdownTimeout (/hang) is the case with in_flight 1.
+Verified by: GOFLAGS=-count=1 make verify; go test -race -count=20 ./cmd/gateway/ passed (19.0s). TestRun_GracefulShutdownWaitsForInFlight (/slow finishes with 200 "done" after cancel, exit 0, one gateway stopped), TestRun_ShutdownTimeout (exit 1 in about 100ms, exactly one error line, in_flight 1, no gateway stopped). Handlers signal on a channel when they start; no sleeps stand in for that.
