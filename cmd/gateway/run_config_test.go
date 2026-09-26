@@ -71,15 +71,44 @@ func TestRun_Help(t *testing.T) {
 	}
 }
 
-// Unknown flags exit 2 with one line and no flag-package text.
+// Unknown flags and positional arguments exit 2 with one line, before config loads
+// or listen is called, and without the value.
 func TestRun_InvalidFlags(t *testing.T) {
-	inTempDir(t, nil)
-	g := startGateway(t, options{args: []string{"-token=" + sentinel}})
-	line := failsBeforeBind(t, g, exitConfig)
-	if line["level"] != "error" || line["msg"] != "invalid flags" {
-		t.Errorf("line = %v", line)
+	cases := []struct {
+		name string
+		args []string
+		want map[string]any // fields beyond level and msg
+	}{
+		{name: "unknown_flag", args: []string{"-token=" + sentinel}},
+		{
+			name: "positional", args: []string{"config.yaml"},
+			want: map[string]any{"reason": "unexpected argument", "count": float64(1)},
+		},
+		{
+			name: "positional_after_flag", args: []string{"-config", "a.yaml", sentinel, sentinel},
+			want: map[string]any{"reason": "unexpected argument", "count": float64(2)},
+		},
 	}
-	noValue(t, g, sentinel)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// A config.yaml that exists shows the argument is not read as one.
+			inTempDir(t, ptr("log_level: info\n"))
+			g := startGateway(t, options{args: tc.args})
+			line := failsBeforeBind(t, g, exitConfig)
+			if line["level"] != "error" || line["msg"] != "invalid flags" {
+				t.Errorf("line = %v", line)
+			}
+			for k, v := range tc.want {
+				if line[k] != v {
+					t.Errorf("%s = %v, want %v", k, line[k], v)
+				}
+			}
+			noValue(t, g, sentinel)
+			if tc.name == "positional" {
+				noValue(t, g, "config.yaml")
+			}
+		})
+	}
 }
 
 // AC6: each env var overrides the file's value, and the startup line names the key.

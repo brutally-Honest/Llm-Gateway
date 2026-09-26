@@ -50,6 +50,11 @@ func run(ctx context.Context, d deps) int {
 		// The flag package's message can quote the value, so only the fact is logged.
 		boot.Error("invalid flags")
 		return exitConfig
+	case fs.NArg() > 0:
+		// The gateway takes no arguments; -config is the only way to name a file. A
+		// positional one can be anything, a path included, so only the count is logged.
+		boot.Error("invalid flags", zap.String("reason", "unexpected argument"), zap.Int("count", fs.NArg()))
+		return exitConfig
 	}
 
 	cfg, src, err := config.Load(config.Options{Path: *configPath, DefaultPath: "config.yaml", LookupEnv: d.lookupEnv})

@@ -34,7 +34,8 @@ order:
    `-help` (`flag.ErrHelp`) logs one `info` line, `usage` with
    `flags: ["-config <path>"]`, and exits `0` before config loads (research Q7). Any
    other flag error is logged as one JSON line, `invalid flags`, without the flag
-   package's message. Exit `2`.
+   package's message. Exit `2`. Any positional argument is `invalid flags` with reason
+   `unexpected argument` and the `count`, never the value (a path can be anything). Exit `2`.
 3. Call `config.Load`. On error, log one JSON line from `*config.Error`'s fields.
    Exit `2`. `listen` has not been called yet.
 4. Build the real logger at the configured level.
