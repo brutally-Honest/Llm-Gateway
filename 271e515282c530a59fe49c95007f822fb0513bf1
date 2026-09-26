@@ -1,0 +1,4 @@
+Spec: specs/001-core-and-anthropic-passthrough/spec.md (AC47, AC48)
+Research: specs/001-core-and-anthropic-passthrough/research.md (Q11, Q12)
+Why this approach: Q11 and Q12 changed scope, so the spec itself is edited (PLAN §10 escalation rule), Scope plus one AC each; nothing else touched.
+Trade-off / known limit: plan.md is updated in the next commit; until then it still describes Q11/Q12's old working defaults.
