@@ -279,7 +279,7 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   `Set`, not `Add`, for its own `Content-Type`. No spec change.
 
 ## Q18 — Where does AC26's literal `anthropic-ratelimit-*` proof live?
-- Status: open     Level: flow
+- Status: answered     Level: flow
 - Blocks / shapes: AC26 (T9); may add a test to T14 and a row to the traceability table
 - Context: 2026-09-26. AC26 names `TestProxy_UpstreamErrorsVerbatim` and says `429`,
   `500` and `529` reach the client with body, `retry-after`, `x-should-retry` and
@@ -299,3 +299,11 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   through the real adapter and `server.New`, sending `anthropic-ratelimit-*` headers on
   each of the three statuses; the traceability row for AC26 becomes `T9, T14`. The
   alternative is that the owner accepts the core stand-in as full proof of AC26.
+- Answer (2026-09-26, owner): the working default. AC26 needs the literal family on
+  an error. T14 adds a second `TestProxy_UpstreamErrorsVerbatim` in
+  `internal/protocols/anthropic/adapter_test.go` that sends `anthropic-ratelimit-*` on
+  `429`, `500` and `529` and checks them byte-identical. The core test stays as the
+  mechanism proof.
+- Outcome: tasks: T9 changed from `(blocked: Q18)` to `(shaped: Q18)`; T14 gains the
+  test and AC26; AC26's coverage row becomes `T9, T14`. plan: AC26's test row names
+  both files. No spec change.

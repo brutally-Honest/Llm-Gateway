@@ -444,7 +444,7 @@ hang, or stall. Log lines are read as JSON from a goroutine-safe buffer, as in 0
 | 23 | `TestProxy_StreamsSSEWithoutBuffering` | same |
 | 24 | `TestProxy_GoldenAnthropicStreamReplay` | `internal/protocols/anthropic/golden_test.go` |
 | 25 | `TestFixtures_NoIdentifiers` | `test/conventions/fixtures_test.go` |
-| 26 | `TestProxy_UpstreamErrorsVerbatim` | `internal/core/proxy_test.go` |
+| 26 | `TestProxy_UpstreamErrorsVerbatim` | `internal/core/proxy_test.go` (T9), `internal/protocols/anthropic/adapter_test.go` (T14) |
 | 27 | `TestProxy_UpstreamUnreachable502` (envelope). Core half: `TestProxy_GatewayErrorStatus` (dial refused, TLS failure, each timeout kind) | `internal/protocols/anthropic/adapter_test.go`, `internal/core/proxy_test.go` |
 | 28 | `TestProxy_UpstreamTimeout504` | `internal/protocols/anthropic/adapter_test.go` |
 | 29 | `TestProxy_NoRetry`, counted at the upstream | `internal/core/proxy_test.go` |

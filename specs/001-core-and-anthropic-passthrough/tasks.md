@@ -176,7 +176,7 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   `TestAccessLog_ProxyFields` (`protocol`, `client`, `stream`, `ttfb_ms` for a streamed
   and a non-streamed request). Done: those pass under `-race`. Commit:
   `feat(proxy): stream responses back unchanged` (AC18, AC19, AC23, AC26, AC36)
-  (shaped: Q6, Q7, Q17) (blocked: Q18)
+  (shaped: Q6, Q7, Q17, Q18)
 - [ ] T10 — `internal/core/proxy.go`, gateway-made errors: an `ErrorHandler`
   (first match wins: a `net.Error` timeout is `504` `upstream_timeout`; the request-body
   watcher holds a read error is `400` `client_body`; anything else is `502`
@@ -251,9 +251,12 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   and `Authorization: Bearer` + `anthropic-beta`, byte-identical),
   `TestProxy_UpstreamUnreachable502` and `TestProxy_UpstreamTimeout504` (this envelope
   and `x-gateway-error`), `TestProxy_ClientBodyEnvelope` (`400`, this envelope,
-  `client_body`), and `TestAccessLog_AuthKind` (`api_key`, `bearer`, `none`). Done:
+  `client_body`), `TestProxy_UpstreamErrorsVerbatim` (`429`, `500` and `529` with
+  `anthropic-ratelimit-*` headers, all byte-identical), and `TestAccessLog_AuthKind`
+  (`api_key`, `bearer`, `none`). Done:
   those pass under `-race`. Commit: `feat(anthropic): add the messages adapter` (AC9,
-  AC10, AC13, AC17, AC27, AC28, AC37, AC47) (shaped: Q1, Q2, Q3) (blocked: Q15)
+  AC10, AC13, AC17, AC26, AC27, AC28, AC37, AC47) (shaped: Q1, Q2, Q3, Q18)
+  (blocked: Q15)
 
 ## Wiring
 
@@ -387,7 +390,7 @@ Every AC in `spec.md` (AC1–AC48) maps to at least one task:
 | AC7 | T1 | AC23 | T9 | AC39 | T15 |
 | AC8 | T8 | AC24 | T21 | AC40 | T16 |
 | AC9 | T14 | AC25 | T18, T21 | AC41 | T3 |
-| AC10 | T14 | AC26 | T9 | AC42 | T4 |
+| AC10 | T14 | AC26 | T9, T14 | AC42 | T4 |
 | AC11 | T12 | AC27 | T10, T14 | AC43 | T17 |
 | AC12 | T8 | AC28 | T10, T14 | AC44 | T22 |
 | AC13 | T14 | AC29 | T10 | AC45 | T22 |
