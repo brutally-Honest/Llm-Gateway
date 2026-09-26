@@ -234,6 +234,7 @@ cmd/  deploy/
 5. **PR.** Links the spec, lists each acceptance criterion with its evidence (test name, log, screenshot), and notes any deviation from the plan.
 6. **Research.** Every doubt, roadblock, or limit met while building goes into `research.md`, with its answer once found (see "research.md" below).
 7. **Decisions.** Anything decided mid-way that outlives the feature becomes an ADR. Resolving an OQ always produces an ADR, and this file is updated in the same PR.
+8. **Close.** When a feature's PR merges, its `spec.md`, `plan.md`, `tasks.md` and `research.md` get `status: done`, in a follow-up commit.
 
 Small fixes don't need a spec folder. The PR description states the bug, the cause, the fix, and the test that proves it.
 
