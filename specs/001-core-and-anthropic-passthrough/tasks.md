@@ -158,7 +158,7 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   Done: those eight pass under `-race`. Commit:
   `feat(proxy): forward requests through a reverse proxy` (AC8, AC12, AC14, AC15, AC16,
   AC20, AC21, AC22) (shaped: Q5, Q9, Q16)
-- [ ] T9 — `internal/core/proxy.go`, the response half: `FlushInterval: -1`, and
+- [x] T9 — `internal/core/proxy.go`, the response half: `FlushInterval: -1`, and
   `ModifyResponse` that deletes upstream's `X-Request-Id` (the gateway's, set by 000's
   `requestID`, stands; `request-id` is untouched), sets `Meta.Stream` (`Content-Type`
   is `text/event-stream`) and `Meta.TTFB`, and wraps `res.Body` in the response watcher

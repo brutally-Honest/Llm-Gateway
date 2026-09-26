@@ -93,6 +93,13 @@ middleware wraps the writer without `Unwrap`, the test fails.
 Nothing else is changed: no `Content-Length`, no `Content-Encoding`, and the body
 bytes and their timing pass through the watcher untouched.
 
+One guard outside the hook keeps that true for a response with no `Content-Type`
+(AC18). `net/http` sniffs one when the first body write carries the headers out;
+`FlushInterval: -1` usually flushes the headers first, but that is a timer race. So
+`ServeHTTP` puts an empty `Content-Type` entry on the writer when it has none, which
+stops the sniff outright; `ReverseProxy` adds upstream's value to that entry when
+upstream sent one.
+
 ### Error handler (AC27–AC31)
 `ErrorHandler(w, r, err)`, first match wins:
 1. `r.Context().Err() != nil`: the client left. Set `Meta.ClientDisconnected`, write

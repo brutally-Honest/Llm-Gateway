@@ -24,6 +24,7 @@ type Meta struct {
 	ClientDisconnected bool
 	UpstreamAborted    bool
 
+	start   time.Time // when the proxy handler started; TTFB is measured from it
 	reqBody *requestWatcher
 	resBody *responseWatcher
 }

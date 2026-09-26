@@ -178,7 +178,13 @@ func startGateway(t *testing.T, base *url.URL, identify func(*http.Request) stri
 // Connection, no User-Agent).
 func (g *gateway) raw(t *testing.T, req string) (*http.Response, []byte) {
 	t.Helper()
-	conn, err := net.Dial("tcp", g.addr)
+	return rawAt(t, g.addr, req)
+}
+
+// rawAt is raw against any address, so a test can ask upstream directly and compare.
+func rawAt(t *testing.T, addr, req string) (*http.Response, []byte) {
+	t.Helper()
+	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		t.Fatal(err)
 	}

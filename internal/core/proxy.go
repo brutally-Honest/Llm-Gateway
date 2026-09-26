@@ -1,6 +1,7 @@
 package core
 
 import (
+	"mime"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -37,10 +38,10 @@ func NewProxy(a Adapter, up config.Upstream, identify func(*http.Request) string
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			rewrite(pr, prefix, base)
 		},
-		ModifyResponse: func(res *http.Response) error {
-			stripProxyHeaders(res.Header)
-			return nil
-		},
+		ModifyResponse: modifyResponse,
+		// Flush after every write, whatever the content type or length: a stream
+		// reaches the client as upstream sends it.
+		FlushInterval: -1,
 	}
 	return &Proxy{rp: rp, adapter: a, identify: identify}
 }
@@ -51,8 +52,41 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		m.Protocol = p.adapter.Name()
 		m.Client = p.identify(r)
 		m.Auth = p.adapter.AuthKind(r.Header)
+		m.start = time.Now()
+	}
+	// net/http sniffs a Content-Type for a response that has none when its first
+	// body write goes out with the headers. ReverseProxy's initial header flush
+	// usually wins that race, but not always; a present but empty entry stops the
+	// sniff outright, so a response upstream sent without one arrives without one.
+	// ReverseProxy adds upstream's own to this entry when there is one.
+	if _, ok := w.Header()["Content-Type"]; !ok {
+		w.Header()["Content-Type"] = nil
 	}
 	p.rp.ServeHTTP(w, r)
+}
+
+// modifyResponse runs after ReverseProxy has removed the hop-by-hop headers. It
+// changes nothing else about the response: no status, no other header, no body byte.
+func modifyResponse(res *http.Response) error {
+	stripProxyHeaders(res.Header)
+	// ReverseProxy adds upstream's headers to the writer's, where 000's requestID has
+	// already set the gateway's X-Request-Id; deleting upstream's leaves exactly one
+	// (research Q6). A differently named request-id is not touched.
+	res.Header.Del("X-Request-Id")
+	if m := MetaFrom(res.Request.Context()); m != nil {
+		m.Stream = isEventStream(res.Header.Get("Content-Type"))
+		m.TTFB = time.Since(m.start)
+		m.HasTTFB = true
+		res.Body = m.watchResponseBody(res.Body)
+	}
+	return nil
+}
+
+// isEventStream reports whether contentType is the generic server-sent-events media
+// type, parameters aside.
+func isEventStream(contentType string) bool {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	return err == nil && mediaType == "text/event-stream"
 }
 
 // newTransport is built field by field rather than cloned from http.DefaultTransport,

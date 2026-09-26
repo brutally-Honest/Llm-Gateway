@@ -1,12 +1,14 @@
 package core_test
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
 	"math/rand/v2"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -14,7 +16,13 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
+	"time"
+
+	"github.com/brutally-honest/llm-gateway/internal/config"
+	"github.com/brutally-honest/llm-gateway/internal/core"
+	"github.com/brutally-honest/llm-gateway/internal/logging"
 )
 
 // headersIn builds a header map and the order its names are written in.
@@ -344,5 +352,267 @@ func TestProxy_TransparentGzipDisabled(t *testing.T) {
 	}
 	if !bytes.Equal(body, gz) {
 		t.Errorf("client body is not upstream's compressed bytes (%d bytes, want %d)", len(body), len(gz))
+	}
+}
+
+// fixedDate is set by upstreams whose response a test compares header for header, so
+// a second ticking over between two requests cannot fail it.
+const fixedDate = "Sat, 26 Sep 2026 10:00:00 GMT"
+
+// sameResponse asks upstream directly and through the gateway with the same request,
+// and fails unless status, headers and body match byte for byte. The only header the
+// gateway may change is X-Request-Id, which is its own; the direct answer has no
+// hop-by-hop header for the gateway to strip, so nothing else may differ.
+func sameResponse(t *testing.T, up *upstream, gw *gateway, req string) *http.Response {
+	t.Helper()
+	direct, directBody := rawAt(t, up.URL.Host, req)
+	via, viaBody := gw.raw(t, req)
+	if via.StatusCode != direct.StatusCode {
+		t.Errorf("status = %d, want upstream's %d", via.StatusCode, direct.StatusCode)
+	}
+	if !bytes.Equal(viaBody, directBody) {
+		t.Errorf("body = %q, want upstream's %q", viaBody, directBody)
+	}
+	gotHeader := via.Header.Clone()
+	gotHeader.Del("X-Request-Id")
+	wantHeader := direct.Header.Clone()
+	wantHeader.Del("X-Request-Id")
+	if !reflect.DeepEqual(gotHeader, wantHeader) {
+		t.Errorf("headers differ from upstream's\n got: %v\nwant: %v", gotHeader, wantHeader)
+	}
+	return via
+}
+
+// AC18: status, headers and body reach the client byte-identical, apart from
+// hop-by-hop headers and X-Request-Id. A response with no Content-Type must not gain
+// a sniffed one on the way through.
+func TestProxy_ResponseVerbatim(t *testing.T) {
+	cases := []struct {
+		name    string
+		respond http.HandlerFunc
+	}{
+		{"with content type", func(w http.ResponseWriter, _ *http.Request) {
+			h := w.Header()
+			h.Set("Date", fixedDate)
+			h.Set("Content-Type", "application/json")
+			h["X-Multi"] = []string{"one", "two"}
+			h.Set("X-Spaced", "a  b")
+			h.Set("Cache-Control", "no-store")
+			h.Set("Set-Cookie", "k=v; Path=/")
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte("{\"id\":\"m_1\",\"bytes\":\"\x00\xff\"}\n"))
+		}},
+		{"no content type", func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Date", fixedDate)
+			w.Header()["Content-Type"] = nil // upstream sends none and sniffs none
+			w.WriteHeader(http.StatusOK)
+			_, _ = io.WriteString(w, "<html>not really html</html>")
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			up := newUpstream(t, tc.respond)
+			gw := startGateway(t, up.URL, identifyWith())
+			res := sameResponse(t, up, gw, rawRequest(http.MethodGet, "/t/v1/thing", up.URL.Host, nil, nil, ""))
+			if tc.name == "no content type" {
+				if v, ok := res.Header["Content-Type"]; ok {
+					t.Errorf("client got Content-Type %q; upstream sent none", v)
+				}
+			}
+		})
+	}
+}
+
+// AC19: upstream's X-Request-Id is replaced by the gateway's, leaving exactly one,
+// and a differently named request-id passes through untouched (Q6).
+func TestProxy_GatewayRequestIDWinsOnResponse(t *testing.T) {
+	up := newUpstream(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-Request-Id", "upstream-id")
+		w.Header().Set("Request-Id", "req_upstream_1")
+		w.WriteHeader(http.StatusOK)
+	})
+	gw := startGateway(t, up.URL, identifyWith())
+
+	res, _ := gw.raw(t, rawRequest(http.MethodGet, "/t/v1/thing", "gateway.local", nil, nil, ""))
+	ids := res.Header.Values("X-Request-Id")
+	if len(ids) != 1 || ids[0] == "upstream-id" || ids[0] == "" {
+		t.Errorf("X-Request-Id = %q, want exactly one, the gateway's", ids)
+	}
+	if got := res.Header.Values("Request-Id"); !reflect.DeepEqual(got, []string{"req_upstream_1"}) {
+		t.Errorf("Request-Id = %q, want upstream's untouched", got)
+	}
+}
+
+// sseUpstream sends first (one event, then a ping), flushing each, then waits for
+// release before it sends second. contentType is its Content-Type.
+func sseUpstream(t *testing.T, contentType string, first []string, second string) (*upstream, func()) {
+	t.Helper()
+	release := make(chan struct{})
+	var once sync.Once
+	unblock := func() { once.Do(func() { close(release) }) }
+	up := newUpstream(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", contentType)
+		w.WriteHeader(http.StatusOK)
+		f := w.(http.Flusher)
+		f.Flush()
+		for _, ev := range first {
+			_, _ = io.WriteString(w, ev)
+			f.Flush()
+		}
+		select {
+		case <-release:
+		case <-r.Context().Done():
+			return
+		}
+		_, _ = io.WriteString(w, second)
+	})
+	// Cleanups run last-in first-out: this runs before upstream closes, so a failed
+	// test never leaves the handler waiting.
+	t.Cleanup(unblock)
+	return up, unblock
+}
+
+// AC23: each SSE event, ping included, reaches the client while upstream is still
+// holding back the next one, through server.New so 000's middleware is in the path,
+// and the content type is upstream's. A read that would wait for the next event
+// fails at the deadline instead of hanging.
+func TestProxy_StreamsSSEWithoutBuffering(t *testing.T) {
+	const contentType = "text/event-stream; charset=utf-8"
+	event := "event: message_start\ndata: {\"n\":1}\n\n"
+	ping := "event: ping\ndata: {\"type\": \"ping\"}\n\n"
+	last := "event: message_stop\ndata: {\"n\":2}\n\n"
+	up, release := sseUpstream(t, contentType, []string{event, ping}, last)
+	gw := startGateway(t, up.URL, identifyWith())
+
+	conn, err := net.Dial("tcp", gw.addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+	if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.WriteString(conn, rawRequest(http.MethodGet, "/t/v1/stream", "gateway.local", nil, nil, "")); err != nil {
+		t.Fatal(err)
+	}
+	res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatalf("no response headers while upstream holds the stream open: %v", err)
+	}
+	defer func() { _ = res.Body.Close() }()
+	if got := res.Header.Values("Content-Type"); !reflect.DeepEqual(got, []string{contentType}) {
+		t.Errorf("Content-Type = %q, want upstream's %q", got, contentType)
+	}
+	for _, want := range []string{event, ping} {
+		got := make([]byte, len(want))
+		if _, err := io.ReadFull(res.Body, got); err != nil {
+			t.Fatalf("waiting for %q before upstream sends the next event: %v (got %q)", want, err, got)
+		}
+		if string(got) != want {
+			t.Fatalf("got %q, want %q", got, want)
+		}
+	}
+	release()
+	rest, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("reading the last event: %v", err)
+	}
+	if string(rest) != last {
+		t.Errorf("last event = %q, want %q", rest, last)
+	}
+}
+
+// AC26: upstream errors reach the client verbatim: status, body, retry-after,
+// x-should-retry and a provider's rate-limit family. Core names no provider, so the
+// rate-limit headers here carry a neutral prefix; the proxy treats every header name
+// alike.
+func TestProxy_UpstreamErrorsVerbatim(t *testing.T) {
+	for _, status := range []int{http.StatusTooManyRequests, http.StatusInternalServerError, 529} {
+		t.Run(strconv.Itoa(status), func(t *testing.T) {
+			body := `{"type":"error","error":{"type":"overloaded","message":"try later"}}`
+			up := newUpstream(t, func(w http.ResponseWriter, _ *http.Request) {
+				h := w.Header()
+				h.Set("Date", fixedDate)
+				h.Set("Content-Type", "application/json")
+				h.Set("Retry-After", "17")
+				h.Set("X-Should-Retry", "true")
+				h.Set("X-Ratelimit-Requests-Limit", "50")
+				h.Set("X-Ratelimit-Requests-Remaining", "0")
+				h.Set("X-Ratelimit-Requests-Reset", "2026-09-26T10:00:17Z")
+				h.Set("X-Ratelimit-Tokens-Remaining", "0")
+				w.WriteHeader(status)
+				_, _ = io.WriteString(w, body)
+			})
+			gw := startGateway(t, up.URL, identifyWith())
+			req := rawRequest(http.MethodPost, "/t/v1/messages", up.URL.Host, nil, nil, "")
+			res := sameResponse(t, up, gw, req)
+			if res.StatusCode != status {
+				t.Errorf("status = %d, want %d", res.StatusCode, status)
+			}
+			for name, want := range map[string]string{
+				"Retry-After": "17", "X-Should-Retry": "true", "X-Ratelimit-Requests-Remaining": "0",
+			} {
+				if got := res.Header.Values(name); !reflect.DeepEqual(got, []string{want}) {
+					t.Errorf("%s = %q, want %q", name, got, want)
+				}
+			}
+		})
+	}
+}
+
+// Risks, Buffering: FlushInterval must stay -1 so every write is flushed at once,
+// whatever the response's content type or length.
+func TestProxy_FlushIntervalIsImmediate(t *testing.T) {
+	base, err := url.Parse("http://127.0.0.1:1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := core.NewProxy(testAdapter{}, config.Upstream{BaseURL: base}, identifyWith(), logging.New(io.Discard, "info"))
+	if got := core.FlushInterval(p); got != -1 {
+		t.Errorf("FlushInterval = %v, want -1", got)
+	}
+}
+
+// AC36: the request line has protocol, client, stream and ttfb_ms, for a streamed
+// and a non-streamed response.
+func TestAccessLog_ProxyFields(t *testing.T) {
+	up := newUpstream(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/stream" {
+			w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+			_, _ = io.WriteString(w, "event: ping\ndata: {}\n\n")
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, "{}")
+	})
+	gw := startGateway(t, up.URL, identifyWith(testProfile{}))
+
+	cases := []struct {
+		path       string
+		wantStream bool
+	}{
+		{"/t/stream", true},
+		{"/t/plain", false},
+	}
+	for _, tc := range cases {
+		h, names := headersIn("X-Test-Client", "1")
+		res, _ := gw.raw(t, rawRequest(http.MethodGet, tc.path, "gateway.local", h, names, ""))
+		if res.StatusCode != http.StatusOK {
+			t.Fatalf("%s: status = %d, want 200", tc.path, res.StatusCode)
+		}
+		line := gw.accessLine(t, tc.path)
+		if line["protocol"] != "test" || line["client"] != "test-client" {
+			t.Errorf("%s: protocol, client = %v, %v; want test, test-client", tc.path, line["protocol"], line["client"])
+		}
+		if line["stream"] != tc.wantStream {
+			t.Errorf("%s: stream = %v, want %v", tc.path, line["stream"], tc.wantStream)
+		}
+		ttfb, ok := line["ttfb_ms"].(float64)
+		if !ok || ttfb < 0 {
+			t.Errorf("%s: ttfb_ms = %v, want a non-negative number", tc.path, line["ttfb_ms"])
+		}
+		if d, _ := line["duration_ms"].(float64); ok && ttfb > d {
+			t.Errorf("%s: ttfb_ms %v exceeds duration_ms %v", tc.path, ttfb, d)
+		}
 	}
 }
