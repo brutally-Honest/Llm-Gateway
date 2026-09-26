@@ -16,10 +16,13 @@ Then:
 2. Implement until they pass.
 3. Run `make verify`. Fix until it passes. Never weaken lint, tests, the Makefile,
    `.golangci.yml` or `.githooks/` to get there.
-4. Tick the task in `tasks.md`. If the work changed what `plan.md` or `spec.md` says,
-   update them in the same commit.
-5. Commit with the subject given in the task line, and add a git note in the repo's
-   format (`Spec:`, `Why this approach:`, `Trade-off / known limit:`, `Verified by:`).
+4. Tick the task in `tasks.md`. If the work changed what `plan.md` says, update it in
+   the same commit. **Never edit `spec.md`**: it is what the reviewer checks you
+   against. If the spec is wrong or silent, stop and report BLOCKED (below).
+5. Load the `commit-conventions` skill, then commit with the subject given in the task
+   line. Add a git note in the format of `PLAN.md` §11 (`Spec:`, `ADR:`, `Research:`,
+   `Why this approach:`, `Alternatives rejected:`, `Trade-off / known limit:`,
+   `Verified by:`), leaving out lines that don't apply.
 
 If you were given review findings, fix only those. Amend the task's commit with
 `git commit --amend` and update its note. Do not start the next task.

@@ -18,8 +18,9 @@ Report:
    covered, and say whether they assert something that would fail if the code were
    wrong.
 2. **Scope.** Anything in the diff that no AC or task line requires.
-3. **Checks on the checks.** Did the diff touch `.golangci.yml`, `Makefile`,
-   `.githooks/`, `go.mod`, or delete, skip or weaken any test? Quote the lines.
+3. **Checks on the checks.** Did the diff touch `spec.md`, `.golangci.yml`, `Makefile`,
+   `.githooks/`, `go.mod`, or delete, skip or weaken any test? Quote the lines. Any
+   change to `spec.md` is an automatic `ESCALATE`.
 4. **Hard rules.** Any line that breaks a rule in `AGENTS.md`.
 5. Run `make verify` and report the result.
 
