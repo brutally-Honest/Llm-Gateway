@@ -347,3 +347,32 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   moves T10's short-body tests (`TestProxy_MalformedClientBody400`,
   `TestProxy_ClientBodyBeatsTimeout`) to the malformed-chunk case, and changes from
   `(blocked: Q19)` to `(shaped: Q19)`.
+
+## Q20 — How does `Registry.Mount` forward a method chi does not know?
+- Status: open     Level: technical
+- Blocks / shapes: plan.md "Registry and routes"; T12 (`Mount`, and the unknown-method
+  half of `TestCore_TestAdapterAndProfileNeedNoCoreChange`)
+- Context: 2026-09-26. Building T12 (chi v5.3.2). Plan and T12 say `Mount` registers
+  `prefix + "/*"` with chi's `Handle` "so `HEAD` and an unknown method are forwarded".
+  `HEAD` is. An unknown method is not: `Mux.routeHTTP` looks `r.Method` up in chi's
+  package-level `methodMap` before it searches the tree, and a method missing from it
+  (anything outside the nine standard ones unless `chi.RegisterMethod` added it) goes
+  straight to the router's `MethodNotAllowedHandler`. A `BREW /t/v1/x` request with the
+  test adapter mounted gets chi's `405` and never reaches the proxy; `POST` and `HEAD`
+  on the same route reach upstream. The same lookup means an unknown method on a path
+  outside every prefix gets `405`, not AC11's `404` (AC11's test only uses standard
+  methods). The spec itself names no unknown-method behaviour; PLAN §5's open-list rule
+  is about headers and body fields.
+- Question: which should it be?
+  (a) Unknown methods are not forwarded in 001: chi's `405` stands, and plan.md and
+  T12 drop "and an unknown method" (T12 tests `HEAD` and the standard methods only).
+  (b) `Mount` also installs the router's `MethodNotAllowed` handler, which sends a
+  request whose path is under a registered prefix to that adapter's proxy and gives
+  every other request chi's `405` (or `404`). This touches a router-wide handler from
+  one mount, so a later mount that sets its own would conflict.
+  (c) `server.New` (or `run`) wraps the chi router so a method chi does not know is
+  dispatched by prefix before chi sees it. Changes `server`, outside T12's file.
+  (d) `chi.RegisterMethod` for a fixed list of extra methods: a global allowlist, which
+  the open-list spirit argues against.
+- Answer: open. No working default applied; T12's code and tests are stashed as
+  "T12 blocked on Q20" (registry.go passes every other T12 test).

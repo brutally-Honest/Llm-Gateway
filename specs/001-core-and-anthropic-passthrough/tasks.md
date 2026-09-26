@@ -233,7 +233,7 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   line has `client: unknown`), `TestCore_TestAdapterAndProfileNeedNoCoreChange` (a test
   adapter and profile, registered from the test, proxy and label a request; no edit in
   `internal/core/`), `TestRegistry_IdentifyFirstMatchWins`. Done: those pass. Commit:
-  `feat(proxy): add the adapter and profile registry` (AC11, AC33, AC35)
+  `feat(proxy): add the adapter and profile registry` (AC11, AC33, AC35) (blocked: Q20)
 
 ## Client and protocol
 
