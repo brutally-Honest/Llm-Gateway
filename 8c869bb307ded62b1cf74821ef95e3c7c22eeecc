@@ -1,4 +1,4 @@
 Spec: specs/001-core-and-anthropic-passthrough (AC41)
 Why this approach: a %T type name cannot hold request data, and debug.Stack prints arguments as pointers, so no string bytes reach the log.
 Trade-off / known limit: the panic value is no longer logged at all; the type and stack are the debugging aid.
-Verified by: make verify; TestRecoverer_LogsPanicTypeNotValue was written before the implementation (no panic_type field existed).
+Verified by: TestRecoverer_LogsPanicTypeNotValue, TestRecoverer_HeadersAlreadyWritten, TestRun_PanicRecovered, written after the implementation; a revert check (old middleware.go restored in a temporary worktree) confirmed all three fail without the change.
