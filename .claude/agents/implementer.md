@@ -1,7 +1,7 @@
 ---
 name: implementer
 description: Implements exactly one task from a feature's tasks.md, verifies it, and commits it. Used by /run-feature.
-tools: Read, Edit, Write, Bash, Grep, Glob
+tools: Read, Edit, Write, Bash, Grep, Glob, Skill
 permissionMode: acceptEdits
 hooks:
   PreToolUse:
@@ -26,10 +26,11 @@ Then:
 4. Tick the task in `tasks.md`. If the work changed what `plan.md` says, update it in
    the same commit. **Never edit `spec.md`**: it is what the reviewer checks you
    against. If the spec is wrong or silent, stop and report BLOCKED (below).
-5. Load the `commit-conventions` skill, then commit with the subject given in the task
-   line. Add a git note in the format of `PLAN.md` §11 (`Spec:`, `ADR:`, `Research:`,
-   `Why this approach:`, `Alternatives rejected:`, `Trade-off / known limit:`,
-   `Verified by:`), leaving out lines that don't apply.
+5. Load the `commit-conventions` skill (if the Skill tool can't find it, Read
+   `~/.claude/skills/commit-conventions/SKILL.md`), then commit with the subject given
+   in the task line. Add a git note in the format of `PLAN.md` §11 (`Spec:`, `ADR:`,
+   `Research:`, `Why this approach:`, `Alternatives rejected:`,
+   `Trade-off / known limit:`, `Verified by:`), leaving out lines that don't apply.
 
 Git commands that change the repo are pre-approved only in these exact shapes, one
 command per call, no `&&`, pipes or redirects: `git add <paths>`,

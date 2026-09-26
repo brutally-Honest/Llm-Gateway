@@ -54,6 +54,10 @@ Decided in `PLAN.md` §8. Do not introduce a dependency without an ADR.
 - verify:  `make verify`
 - run:     `make run`
 
+Commit messages follow the user-level `commit-conventions` skill
+(`~/.claude/skills/commit-conventions/SKILL.md`, PLAN §11). It lives outside this repo,
+so install it on any machine or harness that commits here.
+
 ## Do not
 - Do not weaken lint, tests or config to make a check pass.
 - Do not add suppressions, skip tests, or delete assertions.
