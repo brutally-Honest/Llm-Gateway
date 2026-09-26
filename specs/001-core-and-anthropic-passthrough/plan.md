@@ -169,9 +169,12 @@ atomic and is read by the error handler only.
 `core.Registry` holds adapters (with their upstreams) and profiles in registration
 order. `Registry.Mount(chi.Router)` has the signature `server.New` already takes:
 for each adapter it registers `prefix + "/*"` for every method with chi's
-`Handle`, so `HEAD` and any unknown method are forwarded. `/anthropic` with no
-trailing slash is not under the prefix and gets chi's 404. Anything else is chi's 404
-and never reaches a proxy (AC11).
+`Handle`, so every standard method chi knows, `HEAD` included, is forwarded.
+`/anthropic` with no trailing slash is not under the prefix and gets chi's 404.
+Anything else is chi's 404 and never reaches a proxy (AC11). Known limit (Q20): a
+non-standard method gets chi's `405`, inside or outside a prefix, because chi checks
+the method before the path. If a real client ever needs one, dispatch by prefix before
+chi sees the request.
 
 `Registry.Identify(r)` returns the first profile whose `Match` is true, else
 `ClientUnknown` (`"unknown"`). The order profiles are registered in is the tie-break.

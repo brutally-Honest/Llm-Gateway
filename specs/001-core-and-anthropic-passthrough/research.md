@@ -349,7 +349,7 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   `(blocked: Q19)` to `(shaped: Q19)`.
 
 ## Q20 — How does `Registry.Mount` forward a method chi does not know?
-- Status: open     Level: technical
+- Status: answered     Level: technical
 - Blocks / shapes: plan.md "Registry and routes"; T12 (`Mount`, and the unknown-method
   half of `TestCore_TestAdapterAndProfileNeedNoCoreChange`)
 - Context: 2026-09-26. Building T12 (chi v5.3.2). Plan and T12 say `Mount` registers
@@ -376,3 +376,12 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   the open-list spirit argues against.
 - Answer: open. No working default applied; T12's code and tests are stashed as
   "T12 blocked on Q20" (registry.go passes every other T12 test).
+- Answer (2026-09-26, owner): option (a). Every standard method chi knows, `HEAD`
+  included, is forwarded under an adapter prefix. A non-standard method gets chi's
+  `405`, inside or outside a prefix. Known limit: revisit with option (c), dispatching
+  by prefix before chi sees the request, if a real client ever needs one.
+- Outcome: spec: one Out of scope line for non-standard HTTP methods, since the
+  outside-the-prefix `404` rule would otherwise cover them. plan: "Registry and routes"
+  drops the unknown-method promise and states the known limit. tasks: T12 drops the
+  unknown-method row of `TestCore_TestAdapterAndProfileNeedNoCoreChange` and changes
+  from `(blocked: Q20)` to `(shaped: Q20)`.

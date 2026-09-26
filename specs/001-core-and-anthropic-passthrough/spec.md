@@ -172,6 +172,7 @@ Still local only. There is still no gateway auth, so the default bind stays
   uses the client's own auth.
 - **More than one upstream per adapter,** and choosing an upstream per request.
 - **Cross-protocol translation.**
+- **Non-standard HTTP methods** (405 from the router; research Q20).
 - **Changing the traffic:** decompressing, reshaping or rewriting any request or
   response body, and inventing SSE events.
 - **A gateway request-body size limit** (revisit in 003, when the tunnel exposes the

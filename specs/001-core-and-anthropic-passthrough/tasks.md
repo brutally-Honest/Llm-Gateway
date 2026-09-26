@@ -225,15 +225,17 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   `AddAdapter(a, up)` (builds a `Proxy` per adapter), `Identify(r)` (first matching
   profile in registration order, else `ClientUnknown`) and `Mount(chi.Router)` (the
   signature `server.New` takes), which registers `prefix + "/*"` for every method with
-  chi's `Handle`, so `HEAD` and an unknown method are forwarded. A prefix without a
-  trailing slash (`/t`) is not under the prefix and gets chi's 404. Tests first, in
+  chi's `Handle`, so `HEAD` and every other standard method are forwarded; a
+  non-standard method gets chi's `405` (Q20). A prefix without a trailing slash (`/t`)
+  is not under the prefix and gets chi's 404. Tests first, in
   `internal/core/registry_test.go` with the test adapter: `TestRouter_PathOutsidePrefixIs404`
   (the gateway's `404`, no upstream call, `/healthz` still `200`, the bare prefix `404`),
   `TestProfile_UnknownClientProxied` (a request matching no profile is proxied and the
   line has `client: unknown`), `TestCore_TestAdapterAndProfileNeedNoCoreChange` (a test
-  adapter and profile, registered from the test, proxy and label a request; no edit in
-  `internal/core/`), `TestRegistry_IdentifyFirstMatchWins`. Done: those pass. Commit:
-  `feat(proxy): add the adapter and profile registry` (AC11, AC33, AC35) (blocked: Q20)
+  adapter and profile, registered from the test, proxy and label a request over
+  standard methods only; no edit in `internal/core/`),
+  `TestRegistry_IdentifyFirstMatchWins`. Done: those pass. Commit:
+  `feat(proxy): add the adapter and profile registry` (AC11, AC33, AC35) (shaped: Q20)
 
 ## Client and protocol
 
