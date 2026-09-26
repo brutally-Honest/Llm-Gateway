@@ -32,9 +32,9 @@ A lower priority never degrades a higher one.
 - Stateless process; state lives in external stores.
 
 ## Workflow
-Read `specs/NNN-*/spec.md` → follow its `plan.md` → tick `tasks.md` as you go. Never
-write code outside the current spec's scope. One branch per feature or fix:
-`feat/NNN-slug`, `fix/slug`, `chore/slug`.
+Read `specs/NNN-*/spec.md` → follow its `plan.md` → tick `tasks.md` as you go. Ignore
+spec folders whose `spec.md` has `status: done`. Never write code outside the current
+spec's scope. One branch per feature or fix: `feat/NNN-slug`, `fix/slug`, `chore/slug`.
 
 Every doubt, roadblock or limit you hit goes in the same folder's `research.md` as a
 numbered query. The task it holds up ends with `(blocked: Q2)`; when you record the
