@@ -57,8 +57,8 @@ Before stopping, leave the tree clean for whoever comes next:
 
 If the task is a manual check you cannot run here (Docker missing, needs a second
 machine, needs a browser), do not fake it. If `make verify` passes, commit the code
-you wrote without ticking the task; otherwise stash it as above. Report NEEDS-HUMAN
-with what to run.
+you wrote without ticking the task, and append `(needs-human)` to its line so a re-run
+skips it; otherwise stash it as above. Report NEEDS-HUMAN with what to run.
 
 Your final message is exactly one of these, plus up to 5 lines of detail:
 - `DONE <task id> <short sha>`

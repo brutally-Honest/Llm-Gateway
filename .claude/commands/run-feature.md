@@ -16,10 +16,11 @@ small. Pass file paths and short findings, not file contents.
 - `make verify` passes before you start.
 
 ## Loop: for each unticked task in `tasks.md`, top to bottom
+Skip lines marked `(needs-human)`: their code is committed and waits on a manual check.
 1. Dispatch **implementer** with: the feature folder and the task id. Nothing else.
-2. If it returns `BLOCKED` or `NEEDS-HUMAN`: record it, then continue with the next
-   task only if that task doesn't depend on this one (it's in a different section,
-   or its line doesn't mention the blocked task's files). Otherwise stop.
+2. If it returns `BLOCKED`: record it and stop. Don't guess whether later tasks depend
+   on it; the human answers the query and re-runs, which resumes at this task.
+   If it returns `NEEDS-HUMAN`: record what to run by hand and go to the next task.
 3. If `DONE`, dispatch **reviewer** with: the feature folder, the task id, the task's
    line from `tasks.md` verbatim, and "review `git show <sha>`".
 4. If `FIX`, dispatch a **new** implementer with the task id and the reviewer's
@@ -30,7 +31,7 @@ small. Pass file paths and short findings, not file contents.
 ## Stop immediately when
 - a reviewer returns `ESCALATE`;
 - a task hits its fix-round limit;
-- a blocked task is needed by the next one;
+- an implementer returns `BLOCKED`;
 - `make verify` is red at the start of a task (the previous one broke something);
 - the working tree is not clean at the start of a task (the previous one left
   something behind).
