@@ -119,7 +119,13 @@ func run(ctx context.Context, d deps) int {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Error("shutdown failed")
+		if errors.Is(err, context.DeadlineExceeded) {
+			// in_flight counts handlers still running, not open connections.
+			log.Error("shutdown timed out", zap.Int64("in_flight", srv.InFlight()))
+		} else {
+			log.Error("shutdown failed", zap.Error(err))
+		}
+		_ = srv.Close() // cut what is left; its error adds nothing to the exit code
 		return exitRuntime
 	}
 	if err := <-serveErr; err != nil && !errors.Is(err, http.ErrServerClosed) {

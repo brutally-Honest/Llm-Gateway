@@ -95,7 +95,7 @@ listed on each of them.
   `TestRun_AllLinesJSON`, `TestRun_SecretsNotLogged` and `TestRun_PanicRecovered`
   (stderr piped and empty) pass. Commit:
   `feat(server): mount test routes through run` (AC13, AC14, AC17)
-- [ ] T9 — Graceful shutdown and timeout: `Shutdown` under a fresh
+- [x] T9 — Graceful shutdown and timeout: `Shutdown` under a fresh
   `context.WithTimeout(context.Background(), cfg.ShutdownTimeout)`; on
   `context.DeadlineExceeded`, one `shutdown timed out` error line with
   `in_flight: srv.InFlight()`, then `srv.Close()` and exit `1`. Done:

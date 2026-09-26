@@ -161,7 +161,30 @@ func TestRun_EnvOverridesFile(t *testing.T) {
 		if took := time.Since(start); took > 2*time.Second {
 			t.Errorf("shutdown took %v, want about 100ms", took)
 		}
+		// in_flight is 0: the half-sent request holds the connection active, which
+		// is what Shutdown waits for, but no handler is running, because net/http
+		// hasn't finished reading the headers. The count is handlers, not connections
+		// (plan.md, In-flight count); TestRun_ShutdownTimeout is where it is 1.
+		timedOut := linesWith(g, "shutdown timed out")
+		if len(timedOut) != 1 || timedOut[0]["in_flight"] != float64(0) {
+			t.Errorf("shutdown timed out lines = %v, want one with in_flight 0", timedOut)
+		}
+		if n := len(linesWith(g, "gateway stopped")); n != 0 {
+			t.Errorf("got %d gateway stopped lines, want none", n)
+		}
 	})
+}
+
+// linesWith returns the lines whose msg is msg.
+func linesWith(g *gateway, msg string) []map[string]any {
+	g.t.Helper()
+	var found []map[string]any
+	for _, l := range g.lines() {
+		if l["msg"] == msg {
+			found = append(found, l)
+		}
+	}
+	return found
 }
 
 func wantOverrides(t *testing.T, line map[string]any, keys ...string) {
