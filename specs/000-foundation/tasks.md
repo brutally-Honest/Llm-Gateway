@@ -62,7 +62,7 @@ listed on each of them.
   and `zap.ReplaceGlobals` gives 3 forbidigo findings in `internal/logging/` and 3 on
   any other path (deleted afterwards). Commit:
   `feat(logging): add the zap logger constructors` (shaped: Q6)
-- [ ] T5 — `internal/server`: `Server` (`New`, `Serve`, `Shutdown`, `Close`,
+- [x] T5 — `internal/server`: `Server` (`New`, `Serve`, `Shutdown`, `Close`,
   `InFlight`, `ReadHeaderTimeout: 10s`), the `inflight`, `requestID`, `accessLog` and
   `recoverer` middleware, `RequestID(ctx)`, and `GET /healthz`; `server.New` builds the
   `http.Server` with `ErrorLog: logging.StdLog(log)`, so this task depends on T4's

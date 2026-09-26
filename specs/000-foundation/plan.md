@@ -197,7 +197,8 @@ always an array, so an empty one is `[]`).
    providers put keys there), `status`, `bytes`, `duration_ms` and `remote_addr`. It
    logs no headers and no body.
 4. `recoverer`: `defer recover()`. `http.ErrAbortHandler` is re-panicked so `net/http`
-   handles it silently, as it does by default. Any other panic logs `panic recovered`
+   handles it silently, as it does by default; it is matched with `errors.Is`
+   (errorlint), so a wrapped one aborts too. Any other panic logs `panic recovered`
    at `error` with `request_id`, `panic` (the value) and `stack` (a JSON string field).
    It writes `500` only if nothing has been written yet.
 
