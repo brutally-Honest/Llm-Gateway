@@ -1,0 +1,5 @@
+Spec: specs/001-core-and-anthropic-passthrough/research.md Q19 (answered, option c); spec.md AC47 and the Errors scope bullet
+Why this approach: net/http cancels the request context on the EOF a half-close delivers, so a short body is indistinguishable from a vanished client.
+Alternatives rejected: body-watcher before the context branch (a vanished client would get an unread 400); telling a half-closed client from a gone one some other way (no reliable signal).
+Trade-off / known limit: T11 must first prove Go keeps the context live on a chunked framing error, else BLOCKED with a new query.
+Verified by: make verify (docs only).
