@@ -34,10 +34,13 @@ says so and cites the research query.
    lists. `ReverseProxy` deletes them before `Rewrite`, but the spec forwards everything
    except hop-by-hop (Q5). Nothing is ever *added*.
 5. `pr.Out.Header.Del("Te")`. `ReverseProxy` re-adds `Te: trailers` after stripping,
-   but `TE` is on the spec's hop-by-hop list (Q5).
+   but `TE` is on the spec's hop-by-hop list (Q5). Likewise `Del("Connection")` and
+   `Del("Upgrade")`, which it re-adds for a protocol switch, and every `Proxy-*`
+   header, of which its own list names only `Proxy-Authorization` and
+   `Proxy-Connection` (Q16).
 
-Everything else is left as the client sent it: `ReverseProxy` already strips
-hop-by-hop headers (including those named in `Connection`) before `Rewrite`, and the
+Everything else is left as the client sent it: `ReverseProxy` already strips the rest
+of the hop-by-hop headers (including those named in `Connection`) before `Rewrite`, and the
 gateway's request ID lives only on the response writer, so it never reaches upstream
 (AC16). The gateway does not clean `..` segments: a path is forwarded as sent.
 
@@ -72,6 +75,8 @@ middleware wraps the writer without `Unwrap`, the test fails.
 
 ### Response hook (AC18, AC19, AC23, AC36)
 `ModifyResponse(res)` runs after `ReverseProxy` has removed hop-by-hop headers:
+0. Delete every `Proxy-*` header, which `ReverseProxy` does not (Q16). This step lands
+   with the request half (T8), because AC14 checks both directions.
 1. `res.Header.Del("X-Request-Id")`. `ReverseProxy` copies response headers with
    `Header.Add`, so setting the gateway's ID here would appear twice. The gateway's ID
    is already on the writer, set by 000's `requestID` middleware, so deleting

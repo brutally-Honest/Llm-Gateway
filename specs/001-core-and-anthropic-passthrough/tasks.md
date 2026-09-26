@@ -134,7 +134,7 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   connection). Done: those pass and every 000 access-log test passes unchanged. Commit:
   `feat(server): log proxy fields from a deferred access line` (AC30, AC36, AC38, AC48)
   (shaped: Q8)
-- [ ] T8 — `internal/core/proxy.go`, the request half: `NewProxy(a, up, identify, log)`
+- [x] T8 — `internal/core/proxy.go`, the request half: `NewProxy(a, up, identify, log)`
   builds one `httputil.ReverseProxy` per adapter with `Rewrite` (in this order: strip the
   adapter prefix from `Path` and `RawPath`; `SetURL(base)` with `Out.Host` cleared and
   never `SetXForwarded`; put `pr.In.URL.RawQuery` back; put back the client's
@@ -157,7 +157,7 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   whole), `TestProxy_CompressionPassThrough`, `TestProxy_TransparentGzipDisabled`.
   Done: those eight pass under `-race`. Commit:
   `feat(proxy): forward requests through a reverse proxy` (AC8, AC12, AC14, AC15, AC16,
-  AC20, AC21, AC22) (shaped: Q5, Q9)
+  AC20, AC21, AC22) (shaped: Q5, Q9, Q16)
 - [ ] T9 — `internal/core/proxy.go`, the response half: `FlushInterval: -1`, and
   `ModifyResponse` that deletes upstream's `X-Request-Id` (the gateway's, set by 000's
   `requestID`, stands; `request-id` is untouched), sets `Meta.Stream` (`Content-Type`

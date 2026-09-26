@@ -240,3 +240,22 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
 - Answer: open. Working default: presence only, never the value. `x-api-key` present
   gives `api_key`; otherwise `Authorization` present gives `bearer`; otherwise `none`.
   Claude Code sends one of them per mode (Q3), so the edge cases are not observed.
+
+## Q16 — Does `ReverseProxy` strip every header the spec calls hop-by-hop?
+- Status: answered     Level: technical
+- Blocks / shapes: plan.md "Approach: request rewrite" step 5 and "Response hook"; AC14 (T8)
+- Context: 2026-09-26. Building T8 against `net/http/httputil/reverseproxy.go`
+  (go1.25.4). The spec's hop-by-hop list is `Connection` and what it names,
+  `Keep-Alive`, `TE`, `Trailer`, `Transfer-Encoding`, `Upgrade`, `Proxy-*`. The plan
+  said `ReverseProxy` already strips them, apart from `Te` (Q5).
+- Question: are there others it misses or re-adds?
+- Answer: two. Its `hopHeaders` names only `Proxy-Authorization` and
+  `Proxy-Connection` (plus `Proxy-Authenticate` on responses), so any other `Proxy-*`
+  passes in both directions. And when the client asks for a protocol switch
+  (`Connection: Upgrade`, `Upgrade: websocket`), it re-sets `Connection: Upgrade` and
+  `Upgrade` after stripping, before `Rewrite` runs. Confirmed by
+  `TestProxy_StripsHopByHopHeaders`, which failed with each fix removed.
+- Outcome: escalated → plan. `Rewrite` step 5 also deletes `Connection`, `Upgrade`
+  and every `Proxy-*`; `ModifyResponse` deletes every `Proxy-*` on the response. No
+  spec change: the spec already lists these as hop-by-hop. A consequence: the gateway
+  never switches protocols (no WebSocket through it), which no adapter needs.
