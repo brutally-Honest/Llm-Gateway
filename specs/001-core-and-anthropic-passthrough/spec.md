@@ -101,9 +101,11 @@ Still local only. There is still no gateway auth, so the default bind stays
     `x-gateway-error: <reason>` header:
     - `502` / `upstream_unreachable`: DNS, connection or TLS failure.
     - `504` / `upstream_timeout`: connect, TLS-handshake or response-header timeout.
-    - `400` / `client_body`: the client's own request body is malformed or ends short
-      of its `Content-Length` (research Q11). It is never a `502`. A client that has
-      already gone is not this: see "Client disconnects" below.
+    - `400` / `client_body`: the client's own request body is malformed on a live
+      connection, such as broken chunked framing (research Q11, Q19). It is never a
+      `502`. A client that has already gone is not this: see "Client disconnects"
+      below. A body that ends short of its `Content-Length` counts as a client that
+      has gone (`client_disconnected`), because Go cancels the request context then.
 
     The Anthropic envelope is
     `{"type":"error","error":{"type":"api_error","message":"gateway: <reason>"}}`.
@@ -357,11 +359,11 @@ Manual (evidence recorded in the PR)
   note.
 
 Client errors and aborts
-- **AC47** `TestProxy_MalformedClientBody400` — a request body that ends short of its
-  `Content-Length` gets `400`, the adapter's error envelope and
-  `x-gateway-error: client_body`, and the log line has `gateway_error: client_body`.
-  A client that disconnects instead gets no body and `client_disconnected: true`
-  (research Q11).
+- **AC47** `TestProxy_MalformedClientBody400` — a request body with malformed framing on
+  a live connection (broken chunked encoding) gets `400`, the adapter's error envelope
+  and `x-gateway-error: client_body`, and the log line has `gateway_error: client_body`.
+  A client that disconnects instead, including one whose body ends short of its
+  `Content-Length`, gets no body and `client_disconnected: true` (research Q11, Q19).
 - **AC48** `TestAccessLog_UpstreamAbortedField` — when upstream dies after response
   headers, the `request` line has `upstream_aborted: true`; on a completed response,
   and on a `502`, it is absent or false (research Q12).

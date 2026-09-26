@@ -210,10 +210,16 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   dying after headers gives `upstream_aborted: true` and no `client_disconnected`; a
   client leaving mid-stream gives the reverse; a completed response and a `502` have
   neither), and `TestProxy_MalformedClientBody400`'s second half (a client that
-  vanishes instead gets no body and `client_disconnected: true`). Done: those pass under
-  `-race` with the leak check, and T10's tests still pass. Commit:
+  vanishes instead gets no body and `client_disconnected: true`). Before the context
+  branch, a test first proves that `net/http` keeps the request context live on a
+  chunked framing error; if it does not, stop BLOCKED with a new query. T11 also moves
+  T10's short-body tests to the malformed-chunk case: `TestProxy_MalformedClientBody400`
+  and `TestProxy_ClientBodyBeatsTimeout` prove `400` `client_body` with broken chunked
+  framing, and a body short of its `Content-Length` now asserts `499`, no body and
+  `client_disconnected: true` (Q19). Done: those pass under `-race` with the leak
+  check, and T10's tests still pass. Commit:
   `feat(proxy): handle client disconnects and upstream aborts` (AC30, AC31, AC47, AC48)
-  (shaped: Q8, Q12, Q13) (blocked: Q19)
+  (shaped: Q8, Q12, Q13) (shaped: Q19)
 - [ ] T12 — `internal/core/registry.go`: `NewRegistry(log)`, `AddProfile`,
   `AddAdapter(a, up)` (builds a `Proxy` per adapter), `Identify(r)` (first matching
   profile in registration order, else `ClientUnknown`) and `Mount(chi.Router)` (the

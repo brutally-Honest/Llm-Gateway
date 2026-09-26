@@ -49,7 +49,10 @@ One more step, after the five above, exists only to classify errors (AC47): when
 every `Read` and `Close` straight to the client's body, changes no byte, adds no
 buffering and keeps `ContentLength`; it only remembers the first non-`io.EOF` read
 error, in an `atomic.Pointer` because the transport reads it on its own goroutine. The
-error value is kept for classification and never logged.
+error value is kept for classification and never logged. It decides only while the
+connection is live, such as broken chunked framing: a body short of its
+`Content-Length` also leaves an error here, but `net/http` has already cancelled the
+request context, so the error handler's context branch classifies it first (Q19).
 
 ### Transport (AC21, AC22, AC27, AC28)
 One `*http.Transport` per upstream, built explicitly rather than cloned from
@@ -105,11 +108,13 @@ upstream sent one.
 1. `r.Context().Err() != nil`: the client left. Set `Meta.ClientDisconnected`, write
    the header only with status `499`, no body (Q13). No `x-gateway-error`, no
    `gateway_error`: the gateway did not create an error (AC30).
-2. The request-body watcher holds a read error: the client's own body is malformed or
-   ended short. `400`, reason `client_body`, never a 502 (Q11, AC47). A client that
-   sends broken chunked framing keeps a live context. One that half-closes after too
-   few bytes does not: `net/http` cancels the request context on the connection's
-   `EOF`, so step 1 as ordered would catch it first (found building T10; open, Q19).
+   This includes a body that ends short of its `Content-Length`: `net/http` cancels
+   the request context on the connection's `EOF`, so a short body cannot be told from
+   a client that left, and it is a disconnect, not a `400` (Q19).
+2. The request-body watcher holds a read error on a live connection: the client's own
+   body is malformed, such as broken chunked framing, which keeps the context live.
+   `400`, reason `client_body`, never a 502 (Q11, Q19, AC47). T11 proves with a test
+   that the context stays live on a chunked framing error before relying on it.
 3. `errors.As(err, &net.Error)` with `Timeout()`: `504`, reason `upstream_timeout`. The
    dial, TLS-handshake and response-header timeouts are all `net.Error` timeouts (AC28).
 4. Anything else: `502`, reason `upstream_unreachable` (AC27).
@@ -467,7 +472,7 @@ hang, or stall. Log lines are read as JSON from a goroutine-safe buffer, as in 0
 | 44 | Manual: API-key session and `claude -p` through the gateway; log lines checked as the AC says. Evidence in the PR. Needs an API key (research Q4) | PR |
 | 45 | Manual: the same on a claude.ai subscription | PR |
 | 46 | Manual: read `docs/clients/claude-code.md` against the AC's four items | PR |
-| 47 | `TestProxy_MalformedClientBody400`: a short body (half-close) and broken chunked framing each give 400 `client_body`, with the test adapter's body; a vanished client gets no body and `client_disconnected`. The Anthropic envelope: `TestProxy_ClientBodyEnvelope` | `internal/core/proxy_test.go`, `internal/protocols/anthropic/adapter_test.go` |
+| 47 | `TestProxy_MalformedClientBody400`: broken chunked framing on a live connection gives 400 `client_body`, with the test adapter's body; a short body (half-close) and a vanished client each get no body and `client_disconnected` (Q19). The Anthropic envelope: `TestProxy_ClientBodyEnvelope` | `internal/core/proxy_test.go`, `internal/protocols/anthropic/adapter_test.go` |
 | 48 | `TestAccessLog_UpstreamAbortedField`: upstream dies after headers gives `upstream_aborted: true` and no `client_disconnected`; a client that leaves mid-stream gives the reverse; a completed response and a 502 have neither | `internal/core/proxy_test.go` |
 
 **Tests no single AC names**

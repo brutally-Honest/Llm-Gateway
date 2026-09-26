@@ -315,7 +315,7 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   both files. No spec change.
 
 ## Q19 — Is the inbound context still live when a client half-closes after a short body?
-- Status: open     Level: technical
+- Status: answered     Level: technical
 - Blocks / shapes: plan.md "Error handler" steps 1–2; AC47; T11 (the `ErrorHandler`'s
   context-first branch)
 - Context: 2026-09-26. Building T10 (go1.25.4). Plan step 2 says that for a client that
@@ -335,3 +335,15 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   from a half-closed one some other way, or does AC47's short-body case need another
   shape?
 - Answer: open. No working default applied; T10 does not depend on it.
+- Answer (2026-09-26, owner): option (c), AC47's short-body case changes shape. A body
+  shorter than its `Content-Length` cannot be told from a client leaving: Go cancels
+  the request context in both. So it is classified as `client_disconnected` (`499`, no
+  body). `400` `client_body` is a malformed body on a live connection, such as invalid
+  chunked framing. The context-first order in plan.md stays.
+- Outcome: spec: the `400` / `client_body` scope bullet and AC47 name malformed
+  framing, and a short body counts as `client_disconnected`. plan: error-handler steps
+  1–2, the request-body watcher note and AC47's test row match. tasks: T11 first proves
+  the context stays live on a chunked framing error (else BLOCKED with a new query),
+  moves T10's short-body tests (`TestProxy_MalformedClientBody400`,
+  `TestProxy_ClientBodyBeatsTimeout`) to the malformed-chunk case, and changes from
+  `(blocked: Q19)` to `(shaped: Q19)`.
