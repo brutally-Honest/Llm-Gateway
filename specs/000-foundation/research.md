@@ -141,3 +141,15 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   `info` line, `msg` `usage`, field `flags: ["-config <path>"]`. Nothing is loaded or
   bound. Every other flag error stays `invalid flags`, exit `2`, with no flag-package
   text (it can quote the value). `TestRun_Help` pins it; plan.md step 2 updated.
+
+## Q8 — Does a warm `make verify` meet the spec's 30s goal?
+- Status: answered     Level: limit
+- Blocks / shapes: T19 (shaped)
+- Context: T19 times `make verify` with a warm cache against the 30s goal. Two cases
+  matter: a push with no code change, where every test result is cached, and a push
+  with a code change, where the tests run again. 2026-09-26.
+- Question: is either case over 30s, so that T20 (`TestMain` shares the binary build)
+  is needed?
+- Answer: no. Warm, all test results cached: 0.39s. After `go clean -testcache`, so
+  every test runs: 2.75s. Both are well under 30s.
+- Outcome: goal met; no T20 is added.

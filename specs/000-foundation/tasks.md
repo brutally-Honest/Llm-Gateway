@@ -131,28 +131,28 @@ listed on each of them.
 
 ## Manual evidence (no commit; output goes into the PR as evidence)
 
-- [ ] T14 — Run `make build && file bin/gateway`. It shows `statically linked`. Record
+- [x] T14 — Run `make build && file bin/gateway`. It shows `statically linked`. Record
   the output. (AC1)
-- [ ] T15 — Run `make run`, then in another shell
+- [x] T15 — Run `make run`, then in another shell
   `curl -si http://127.0.0.1:7197/healthz`. It gives `200` and `{"status":"ok"}`.
   Record the startup line and the curl output. Stop the gateway before T17. (AC2)
-- [ ] T16 — Run each of these and record the exit codes:
+- [x] T16 — Run each of these and record the exit codes:
   - `make verify; echo $?` gives `0`.
-  - `printf 'package config\nimport "testing"\nfunc TestZZFail(t *testing.T) { t.Fail() }\n' > internal/config/zz_fail_test.go; make verify; echo $?; rm internal/config/zz_fail_test.go`
+  - `printf 'package config\nimport "testing"\nfunc TestZZFail(t *testing.T) { t.Fail() }\n' > internal/config/zz_fail_test.go; gofmt -w internal/config/zz_fail_test.go; make verify; echo $?; rm internal/config/zz_fail_test.go`
     gives non-zero.
   - `printf 'package config\nfunc zzUnused() {}\n' > internal/config/zz_lint.go; make verify; echo $?; rm internal/config/zz_lint.go`
     gives non-zero.
 
   (AC19)
-- [ ] T17 — With `make run` stopped:
+- [x] T17 — With `make run` stopped:
   `make image && docker compose up -d && curl -si http://127.0.0.1:7197/healthz && docker compose port gateway 7197 && docker compose down`.
   Expect `200` and `127.0.0.1:7197`. Record the output. (AC23)
-- [ ] T18 — `git clone <remote> /tmp/llmgw-fresh && cd /tmp/llmgw-fresh && make setup && make verify && make run`,
+- [x] T18 — `git clone -b chore/foundation <remote> /tmp/llmgw-fresh && cd /tmp/llmgw-fresh && make setup && make verify && make run`,
   then the T15 curl. Record the output. (AC24)
-- [ ] T19 — With a warm cache (run `make verify` once and discard it), time
+- [x] T19 — With a warm cache (run `make verify` once and discard it), time
   `time make verify` against the spec's 30s goal. Record the result only, as a numbered
   entry in `research.md` (Level: limit). If it is over 30s, add a new task T20 after
   this one for the `TestMain` change, with its own commit
   (`test(server): share the binary build in TestMain`), and note T20 in that entry's
   Outcome. Commit:
-  `docs(repo): record the make verify timing`
+  `docs(repo): record the manual evidence and verify timing`

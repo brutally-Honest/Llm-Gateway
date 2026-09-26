@@ -430,12 +430,12 @@ These tests run inside `make verify`. They cost well under a second each, and `s
 | AC16 | In-process `TestRun_ShutdownTimeout`: `/hang`, `shutdown_timeout: 100ms`, exit `1`, exactly one error line with `in_flight: 1`, no `gateway stopped` |
 | AC17 | `TestRun_PanicRecovered`: `/panic` gives `500` with one `panic recovered` JSON line, then `/healthz` still gives `200`. `os.Stderr` is swapped for a pipe in this test (not parallel), and the pipe must be empty. Plus `internal/server` `TestRecoverer_HeadersAlreadyWritten` |
 | AC18 | `internal/server` `TestRequestID`: the header is present, 26 characters, differs from the sent `X-Request-Id`, and differs between requests |
-| AC19 | Manual. Pass: `make verify; echo $?` gives `0`. Test failure: `printf 'package config\nimport "testing"\nfunc TestZZFail(t *testing.T) { t.Fail() }\n' > internal/config/zz_fail_test.go; make verify; echo $?; rm internal/config/zz_fail_test.go` gives non-zero. Lint failure: `printf 'package config\nfunc zzUnused() {}\n' > internal/config/zz_lint.go; make verify; echo $?; rm internal/config/zz_lint.go` gives non-zero |
+| AC19 | Manual. Pass: `make verify; echo $?` gives `0`. Test failure: `printf 'package config\nimport "testing"\nfunc TestZZFail(t *testing.T) { t.Fail() }\n' > internal/config/zz_fail_test.go; gofmt -w internal/config/zz_fail_test.go; make verify; echo $?; rm internal/config/zz_fail_test.go` gives non-zero. Lint failure: `printf 'package config\nfunc zzUnused() {}\n' > internal/config/zz_lint.go; make verify; echo $?; rm internal/config/zz_lint.go` gives non-zero |
 | AC20 | `test/githooks` `TestPrePush_Rejects/{malformed_subject,verify_fails,dirty_tree,sha_not_head}` |
 | AC21 | `TestPrePush_Allows/{branch_deletion,clean_range,notes,tag}` |
 | AC22 | `TestSetupGit_Idempotent`: `git config --local --list` is byte-identical after the first and second runs, and the notes refspec appears once |
-| AC23 | Manual: `make image && docker compose up -d && curl -si http://127.0.0.1:7197/healthz && docker compose port gateway 7197 && docker compose down`. Expect `200` and `127.0.0.1:7197`. Stop `make run` first (see the note in `tasks.md`) |
-| AC24 | Manual: `git clone <remote> /tmp/llmgw-fresh && cd /tmp/llmgw-fresh && make setup && make verify && make run` (then the AC2 curl) |
+| AC23 | Manual: `make image && docker compose up -d && curl -si http://127.0.0.1:7197/healthz && docker compose port gateway 7197 && docker compose down`. Expect `200` and `127.0.0.1:7197`. Stop `make run` first (see the note in `tasks.md`). Inside the container the startup line shows `addr` `[::]:7197`, Go's dual-stack form of `0.0.0.0`; that is expected |
+| AC24 | Manual: `git clone -b chore/foundation <remote> /tmp/llmgw-fresh && cd /tmp/llmgw-fresh && make setup && make verify && make run` (then the AC2 curl) |
 
 ## Risks and unknowns
 
