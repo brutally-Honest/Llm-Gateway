@@ -1,0 +1,5 @@
+Spec: specs/001-core-and-anthropic-passthrough/spec.md (Open questions; AC9, AC13, AC33, AC44-AC46)
+Research: specs/001-core-and-anthropic-passthrough/research.md (Q1, Q2, Q3, Q4)
+Why this approach: answers come from observed traffic, not docs; no scope or AC change followed from them
+Trade-off / known limit: subscription mode only (claude-cli/2.1.283); API-key mode untested (Q4)
+Verified by: manual probe run 2026-09-26; make verify
