@@ -101,7 +101,7 @@ listed on each of them.
   `in_flight: srv.InFlight()`, then `srv.Close()` and exit `1`. Done:
   `TestRun_GracefulShutdownWaitsForInFlight` and `TestRun_ShutdownTimeout` pass.
   Commit: `feat(server): exit non-zero when shutdown times out` (AC15, AC16)
-- [ ] T10 — `cmd/gateway/binary_test.go`: builds `./cmd/gateway` into `t.TempDir()`,
+- [x] T10 — `cmd/gateway/binary_test.go`: builds `./cmd/gateway` into `t.TempDir()`,
   starts it on `127.0.0.1:0`, reads the port from the startup line, calls `/healthz`,
   and sends SIGTERM and SIGINT. Done: `TestBinary_SignalShutdown` passes (exit `0`,
   `gateway stopped`, every stdout line JSON, the `request` line has `request_id`,
