@@ -1,0 +1,5 @@
+Spec: specs/001-core-and-anthropic-passthrough/spec.md (AC24, AC25)
+Research: Q14 (owner recorded the fixture; an implementer cannot)
+Why this approach: real recording kept byte-exact, including Anthropic's trailing space padding in data lines.
+Trade-off / known limit: README.md names organization and org_id-style words, which the planned TestFixtures_NoIdentifiers scanner would flag; needs a decision before T18/T21.
+Verified by: manual grep of all three files for sk-ant, bearer, wrkspc, organization, account_uuid, org_id, emails and UUIDs.
