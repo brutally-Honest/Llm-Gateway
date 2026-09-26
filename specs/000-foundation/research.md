@@ -53,3 +53,53 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   stub `verify`. Against a hook running plain `make verify` the push succeeds and the
   case fails; with the four cleared it is rejected (2026-09-26).
 - Outcome: hook clears MAKEFLAGS, MFLAGS, GNUMAKEFLAGS, GOFLAGS; escalated to plan.
+
+## Q3 — What counts as an empty document, and can step 4 fail after step 3?
+- Status: answered     Level: technical
+- Blocks / shapes: T3 (shaped)
+- Context: plan.md Config steps 2–4 treat only the zero node (an empty or
+  comment-only file) as an empty document, and say step 4 "cannot fail on today's
+  keys" after step 3. Probed `go.yaml.in/yaml/v3 v3.0.5` with go 1.25.4, 2026-09-26.
+- Question: which files hit step 3's `not a mapping` and step 4's `invalid config`
+  that shouldn't, or can't?
+- Answer: a bare `---` or `~` gives a document whose root is a `!!null` scalar, not a
+  mapping; it sets no keys, so it is an empty document, not `not a mapping`. A key with
+  a null value (`log_level:` or `log_level: ~`) decodes to a nil `*string`, so the key
+  keeps its default, the same as an empty env var counts as unset (ADR 0002). Step 4
+  **can** fail after step 3: `log_level: !!int abc` is a scalar, so the walk passes,
+  and the decoder fails with ``cannot decode !!str `abc` as a !!int``, which quotes the
+  value. That is the `invalid config` path, and it is reachable, so
+  `TestLoad_ErrorsNeverContainValue` covers it. A malformed second document fails the
+  second `Decode` and gives `multiple documents`.
+- Outcome: `documentRoot` treats a `!!null` root as empty; `TestLoad_EmptyFile` covers
+  `---` and null values. plan.md steps 3 and 4 corrected.
+
+## Q4 — Does yaml.v3's `line N` always point at the bad line?
+- Status: won't fix     Level: limit
+- Blocks / shapes: T3 (shaped)
+- Context: `TestLoad_MalformedYAMLReportsLine` first used
+  `log_level: info\n\nlisten_addr: [127.0.0.1\n` (bad line 3) and got line 2.
+  go.yaml.in/yaml/v3 v3.0.5, 2026-09-26.
+- Question: is the line pulled from the syntax error the offending line?
+- Answer: not always. Unclosed flow collections (`[`, `{`) and `did not find expected
+  key` report the line before; `mapping values are not allowed`, bad indentation and
+  an unterminated quote at end of stream report the bad line (or the one after, for end
+  of stream). The number is yaml.v3's own, taken from its message.
+- Outcome: the loader passes yaml.v3's number through unchanged, rather than guessing a
+  correction per message. The test pins an error whose line is exact. plan.md's Risks
+  bullet on the syntax-error line notes it.
+
+## Q5 — What does Load return when the file exists but can't be read?
+- Status: answered     Level: technical
+- Blocks / shapes: T3 (shaped)
+- Context: plan.md step 1 names only `file not found`, for a missing explicit path.
+  `os.ReadFile` can also fail on a directory, a permission error or an I/O error, and
+  the default path can hit these too.
+- Question: which reason, and does a default path that exists but can't be read fall
+  back to defaults?
+- Answer: a new fixed reason, `cannot read file`, with the path as the source, for any
+  read error other than "does not exist", on either path. A missing default path still
+  means defaults (ADR 0002), but an unreadable one is an error: silently ignoring a
+  `config.yaml` that is present would run the gateway on settings nobody chose.
+- Outcome: `readFile` returns `cannot read file`; `TestLoad_ErrorsNeverContainValue`
+  covers it with a directory as the path. plan.md step 1 lists the reason.

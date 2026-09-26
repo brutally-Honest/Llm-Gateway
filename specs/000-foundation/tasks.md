@@ -44,7 +44,7 @@ listed on each of them.
 
 ## Gateway, bottom-up
 
-- [ ] T3 — `internal/config`: `Config`, `Options`, `Source`, `Error`, `Defaults`,
+- [x] T3 — `internal/config`: `Config`, `Options`, `Source`, `Error`, `Defaults`,
   `Load` (Config steps 1–6); adds `go.yaml.in/yaml/v3 v3.0.5` to `go.mod`. Also
   `config.example.yaml` (the three keys, commented, at their defaults), because
   `TestLoad_ExampleFileIsDefaults` in this task reads it. Done: `TestDefaults`,
@@ -52,7 +52,7 @@ listed on each of them.
   1–5), `TestLoad_MalformedYAMLReportsLine`, `TestLoad_EmptyFile`,
   `TestLoad_ExampleFileIsDefaults`, `TestLoad_InvalidDuration` and
   `TestLoad_InvalidAddress` pass. Commit: `feat(config): add the config loader`
-  (AC5, AC8, AC11)
+  (AC5, AC8, AC11) (shaped: Q3, Q4, Q5)
 - [ ] T4 — `internal/logging`: `New`, `Bootstrap`, `StdLog`, and the JSON
   `ErrorOutput` writer; adds `go.uber.org/zap v1.28.0` to `go.mod`. Done:
   `TestNew_JSONShape` and `TestErrorOutput_JSON` pass, and `make verify` passes,

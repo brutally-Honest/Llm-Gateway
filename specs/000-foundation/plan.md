@@ -118,6 +118,8 @@ with no wrapped parser error, so the caller has nothing unsafe to log.
 
 1. **Pick the file.** Use `-config` if set; a missing explicit path is an error
    (`file not found`). Otherwise use `./config.yaml` if it exists, or else no file.
+   A file that exists but can't be read, on either path, gives `cannot read file`
+   (research Q5).
 2. **Parse into `yaml.Node`** with `yaml.Unmarshal`. An empty or comment-only file
    yields a zero node (`Kind == 0`, no error; checked in v3.0.5). That counts as an
    empty document: no keys set, not an error. A syntax error from yaml.v3 is an
@@ -125,8 +127,9 @@ with no wrapped parser error, so the caller has nothing unsafe to log.
    `parser.fail`). A regexp `^yaml: line (\d+):` pulls out `N` and **everything else is
    discarded**. With no match, the error line carries only the path. Reason:
    `malformed yaml`.
-3. **Walk the root mapping.** An empty document (including the zero node from step 2)
-   means "no keys set", and the walk is skipped. A root that is not a mapping gives
+3. **Walk the root mapping.** An empty document (the zero node from step 2, or a root
+   that is a `!!null` scalar, as from a bare `---` or `~`) means "no keys set", and the
+   walk is skipped (research Q3). A root that is not a mapping gives
    `not a mapping`. For each key node: unknown key gives
    `unknown key`, with `Key` and `Line` from the key node. A key seen twice gives
    `duplicate key` (yaml.v3 only checks for duplicates when decoding into a map or
@@ -138,8 +141,10 @@ with no wrapped parser error, so the caller has nothing unsafe to log.
    `(*Node).Decode` has no `KnownFields` option. This is the decoder the spec names,
    and it stays as a backstop for the nested keys later features will add. An
    `io.EOF` on the first `Decode` means an empty stream (empty or comment-only file),
-   so every key keeps its default. After step 3 it cannot fail on today's keys. If it
-   does, the error is reduced to `invalid config` plus the path. A second `Decode` must
+   so every key keeps its default. A key with a null value decodes to nil and keeps its
+   default too. After step 3 it still fails on a scalar the struct can't hold, like
+   `log_level: !!int abc`, whose message quotes the value; the error is reduced to
+   `invalid config` plus the path (research Q3). A second `Decode` must
    return `io.EOF`; otherwise the reason is `multiple documents`.
 5. **Validate the values ourselves.** Only the key, the source and a fixed reason reach
    the `Error`.
@@ -448,7 +453,9 @@ These tests run inside `make verify`. They cost well under a second each, and `s
 - **Parsing the syntax-error line depends on yaml.v3's message format.** It is
   `yaml: line N: ...` in v3.0.5, and v3 is frozen to security fixes (ADR 0002).
   `TestLoad_MalformedYAMLReportsLine` pins it. If the format changes, the error line
-  loses the line number and never gains the value.
+  loses the line number and never gains the value. For some errors (unclosed `[` or
+  `{`) yaml.v3's line is the one before the bad line; it is passed through as is
+  (research Q4).
 - **Logged panic values.** The recover line logs the panic value. In 000 only our own
   code panics. In 001 a panic value could carry request data, so 001 should revisit this
   under PLAN §5's secrets rule.
