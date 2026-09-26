@@ -1,0 +1,4 @@
+Spec: specs/001-core-and-anthropic-passthrough/research.md Q20 (open); plan.md "Registry and routes"; T12
+Why this approach: plan and task promise unknown methods are forwarded through chi Handle; chi v5.3.2 routeHTTP checks methodMap first and sends unknown methods to MethodNotAllowedHandler, so the mechanism cannot deliver the outcome. Choosing between dropping the promise, a router-wide 405 hook, wrapping the router in server, or RegisterMethod is a design call, not a guess.
+Trade-off / known limit: T12 attempt (internal/core/registry.go, registry_test.go) stashed as "T12 blocked on Q20"; every T12 test passes except the BREW row of TestCore_TestAdapterAndProfileNeedNoCoreChange.
+Verified by: go test -race ./internal/core -run Router|Registry|Profile_Unknown|NeedNoCore (BREW /t/v1/xyy gets 405, upstream sees 2 of 3 requests).
