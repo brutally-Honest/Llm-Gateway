@@ -50,9 +50,9 @@ edit `plan.md`; if it outlives the feature or is hard to reverse, write an ADR i
 Decided in `PLAN.md` §8. Do not introduce a dependency without an ADR.
 
 ## Commands
-- install: <FILL: filled in Phase 0, once go.mod exists and the command has been run>
-- verify:  <FILL: filled in Phase 0 — lint + `go test -race ./...` chained>
-- run:     <FILL: filled in Phase 0>
+- install: `make setup`
+- verify:  `make verify`
+- run:     `make run`
 
 ## Do not
 - Do not weaken lint, tests or config to make a check pass.

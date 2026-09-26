@@ -1,0 +1,5 @@
+.git
+bin/
+config.yaml
+.env*
+**/.env*

@@ -8,7 +8,7 @@ and cost.
 It is **not** a harness — it never runs agents, executes tools or edits files — and it
 is not tied to one vendor.
 
-Status: **Phase 0**, bootstrapping. No application code yet.
+Status: **Phase 0** in progress. The gateway serves `/healthz`; see `specs/000-foundation/`.
 
 - `PLAN.md` — the one-page source of intent: goals, phases, stack rationale, open
   questions, commit conventions.
@@ -21,6 +21,9 @@ Status: **Phase 0**, bootstrapping. No application code yet.
 ## Setup
 
 ```sh
-git config core.hooksPath .githooks          # commit-message conventions (PLAN.md §11)
-git config notes.rewriteRef refs/notes/commits
+make setup
 ```
+
+It enables the git hooks and notes config, installs the pinned golangci-lint into
+`./bin` and downloads the Go modules. It is safe to run again. The other commands
+(`verify`, `run`) are listed in `AGENTS.md`.

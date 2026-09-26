@@ -1,0 +1,17 @@
+# Gateway configuration. Copy to config.yaml (ignored by git) and edit.
+# Every key is optional and shown at its default. Precedence: defaults < this file
+# < env. Secrets never go here; they only ever come from env vars (ADR 0002).
+
+# Address to listen on, as host:port. Loopback only by default: the gateway has no
+# auth yet. An empty host (":7197") is rejected; write 0.0.0.0 or [::] to listen on
+# every interface.
+# Env: GATEWAY_LISTEN_ADDR
+listen_addr: 127.0.0.1:7197
+
+# One of debug, info, warn, error.
+# Env: GATEWAY_LOG_LEVEL
+log_level: info
+
+# How long shutdown waits for in-flight requests. Go duration syntax; must be > 0.
+# Env: GATEWAY_SHUTDOWN_TIMEOUT
+shutdown_timeout: 30s

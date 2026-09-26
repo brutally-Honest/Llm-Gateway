@@ -115,7 +115,7 @@ Each phase maps to one or more features, and each feature gets its own spec fold
 
 | # | Phase | Goal | Done when |
 |---|---|---|---|
-| 0 | Foundation | Repo, AGENTS.md, spec templates, docker-compose, CI (lint, test, `-race`), logging, `/healthz` | CI green on an empty feature PR |
+| 0 | Foundation | Repo, AGENTS.md, spec templates, docker-compose, local gate (`make verify`: lint, test, `-race`; pre-push hook), logging, `/healthz` | On a fresh clone, after `make setup`, `make verify` passes, and a push containing a malformed commit subject or a failing check is rejected |
 | 1 | Core + first protocol | Adapter/profile interfaces; Anthropic Messages passthrough (`/v1/messages`, `count_tokens`, `/v1/models`, `HEAD /api/hello`); Claude Code profile | A real Claude Code session (API key **and** subscription) runs through the gateway with no behaviour difference |
 | 2 | Capture + canonical events | Async raw capture with redaction; Anthropic parser → canonical events | Every exchange is stored and parsed; killing the store doesn't break the client |
 | 3 | Second protocol (the agnosticism proof) | OpenAI Chat Completions adapter + Cursor profile; gateway token auth; documented tunnel setup | Cursor traffic produces the **same canonical events**, with zero changes to the core or the Anthropic adapter |
@@ -144,7 +144,7 @@ Status: **Decided** = settled; **Proposed** = my default, confirmed in the phase
 | Capture pipeline | **In-process bounded channel + worker goroutines**; when full, drop and count rather than block | Keeps "capture never blocks" true with zero extra infrastructure. The counter makes loss visible instead of silent. | **Kafka:** I know it from production, but it's a whole broker for one user on one machine. Revisit if multiple gateway instances ever exist. **Synchronous writes:** add storage latency to every token of every stream. | Proposed | Phase 2 |
 | Capture store | — | — | — | **Open (OQ-1)** | Phase 2 |
 | Rate-limit state | **Redis** + Lua token bucket | A Lua script runs atomically on the server, so check-and-decrement has no race between instances. Keeps the process stateless. I already run it in production. | **In-memory limiter:** simplest, but state dies on restart and breaks with more than one instance, which violates the stateless rule. Redis is added only in Phase 6, so it isn't a dependency before it's needed. | Decided | Phase 6 |
-| Config | **One YAML file** (providers, pricing, client profiles, routes); **secrets only from env vars** | Adding a provider or model price is a config edit, not code, which is agnosticism made concrete. Secrets never sit in a file that could be committed. | **DB-backed config:** needed for an admin UI, which is out of scope. **Env-only:** unreadable for nested pricing and routing tables. | Proposed | Phase 1 |
+| Config | **One YAML file** (providers, pricing, client profiles, routes), parsed with **`go.yaml.in/yaml/v3`**; **secrets only from env vars** | Adding a provider or model price is a config edit, not code, which is agnosticism made concrete. Secrets never sit in a file that could be committed. | **DB-backed config:** needed for an admin UI, which is out of scope. **Env-only:** unreadable for nested pricing and routing tables. | Decided ([ADR 0002](docs/decisions/0002-config-format-and-loader.md)) | Phase 0 |
 | Logging | **zap** (structured JSON) | Very low allocation on the hot path; mature; structured fields make logs queryable by session or request ID. | **`log/slog`** (stdlib): a credible option with no dependency. zap was already chosen and can sit behind a slog handler, so switching later is cheap. | Decided | Phase 0 |
 | Metrics | **Prometheus + Grafana** | The de-facto standard. Pull-based, so no agent is needed. Histograms give p50/p99 latency overhead, one of my learning goals. | **StatsD:** no native histograms/percentiles. **Datadog etc.:** SaaS, costs money, and data leaves my machine. | Decided | Phase 9 |
 | Tracing | **OpenTelemetry → Jaeger** | OTel is vendor-neutral, which matches the agnostic principle: the backend can swap without code changes. Jaeger gives a local UI in one container. | **Vendor SDKs:** lock-in. **Grafana Tempo:** fine, but needs more setup to browse locally than Jaeger. | Decided | Phase 9 |
@@ -303,7 +303,7 @@ What is repo-specific, and so belongs here:
 
 ### Scopes
 
-A scope is a noun naming the area touched, matching this codebase: `proxy`, `capture`, `anthropic`, `openai-chat`, `cursor`, `claude-code`, `cost`, `ratelimit`, `routing`, `store`, `observability`, `config`, `ci`, `docs`.
+A scope is a noun naming the area touched, matching this codebase: `proxy`, `capture`, `anthropic`, `openai-chat`, `cursor`, `claude-code`, `cost`, `ratelimit`, `routing`, `store`, `observability`, `config`, `server` (`internal/server`, `cmd/gateway`), `logging`, `deploy` (Dockerfile, compose, image), `docs`, `repo` (repo-level tooling, hooks, process docs).
 
 **Branch and commit agree.** Commits on `feat/003-cursor-adapter` use scopes from that feature.
 
@@ -337,5 +337,5 @@ The skill gets the message right when it is written. The repo assumes it wasn't:
 - A **`commit-msg` hook** at `.githooks/commit-msg`, enabled with `git config core.hooksPath .githooks`:
   - rejects a subject that doesn't match `^(feat|fix|refactor|perf|test|docs|build|ci|chore|revert)(\([a-z0-9-]+\))!?: .+$`, ends in a period, or runs over 72 characters;
   - rejects any `Co-authored-by:` or AI-attribution trailer.
-- **CI repeats the same check** on every commit in a PR, so a skipped hook can't sneak through.
+- A **`pre-push` hook** at `.githooks/pre-push` re-runs `.githooks/commit-msg` on every commit in the pushed range, so a commit made with `git commit --no-verify` can't sneak through. There is no CI; this local gate replaces it ([ADR 0001](docs/decisions/0001-local-gate-instead-of-ci.md)).
 - Never bypass either with `--no-verify`.
