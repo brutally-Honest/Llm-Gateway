@@ -101,6 +101,9 @@ Still local only. There is still no gateway auth, so the default bind stays
     `x-gateway-error: <reason>` header:
     - `502` / `upstream_unreachable`: DNS, connection or TLS failure.
     - `504` / `upstream_timeout`: connect, TLS-handshake or response-header timeout.
+    - `400` / `client_body`: the client's own request body is malformed or ends short
+      of its `Content-Length` (research Q11). It is never a `502`. A client that has
+      already gone is not this: see "Client disconnects" below.
 
     The Anthropic envelope is
     `{"type":"error","error":{"type":"api_error","message":"gateway: <reason>"}}`.
@@ -118,7 +121,9 @@ Still local only. There is still no gateway auth, so the default bind stays
   - `stream` (the response is `text/event-stream`);
   - `ttfb_ms` (time to upstream response headers);
   - `gateway_error` (the reason, when the gateway created the error);
-  - `client_disconnected` (true when the client went away before the response ended).
+  - `client_disconnected` (true when the client went away before the response ended);
+  - `upstream_aborted` (true when upstream failed after response headers were sent and
+    the gateway aborted the client connection; research Q12).
 
   No headers, body or query string, as in 000. No `model`: that needs body parsing (002).
 - **Carry-overs from 000.**
@@ -350,6 +355,16 @@ Manual (evidence recorded in the PR)
 - **AC46** `ManualDocs_ClaudeCodePage` — `docs/clients/claude-code.md` has the setup for
   both modes, the known limits, the smoke checklist, and the up-to-10-minute shutdown
   note.
+
+Client errors and aborts
+- **AC47** `TestProxy_MalformedClientBody400` — a request body that ends short of its
+  `Content-Length` gets `400`, the adapter's error envelope and
+  `x-gateway-error: client_body`, and the log line has `gateway_error: client_body`.
+  A client that disconnects instead gets no body and `client_disconnected: true`
+  (research Q11).
+- **AC48** `TestAccessLog_UpstreamAbortedField` — when upstream dies after response
+  headers, the `request` line has `upstream_aborted: true`; on a completed response,
+  and on a `502`, it is absent or false (research Q12).
 
 ## Open questions
 - [ANSWERED: research.md Q1] Does Claude Code send `HEAD /api/hello` through `ANTHROPIC_BASE_URL`, or
