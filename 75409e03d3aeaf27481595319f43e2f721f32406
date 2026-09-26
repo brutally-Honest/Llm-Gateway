@@ -1,0 +1,4 @@
+Spec: specs/000-foundation/spec.md (AC3, AC4, AC5); research Q7
+Why this approach: run takes deps (args, lookupEnv, stdout, listen) so tests drive it in-process; the injected listen records the address and binds 127.0.0.1:0, so no test binds 7197.
+Trade-off / known limit: error branches are minimal (one JSON line, the planned exit code); T7-T9 refine them (Q7). gateway -h exits 2 with invalid flags until T7 decides flag.ErrHelp.
+Verified by: GOFLAGS=-count=1 make verify; TestRun_StartupLine (real bind on 127.0.0.1:0, /healthz at the logged addr, one startup line, exit 0, gateway stopped), TestRun_DefaultsWhenNoConfig (config_source defaults, env_overrides []), TestRun_DefaultListenAddr (listen asked for 127.0.0.1:7197). make build: bin/gateway statically linked.
