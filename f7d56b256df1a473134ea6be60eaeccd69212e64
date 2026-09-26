@@ -1,0 +1,3 @@
+Why this approach: a task line naming no files of the blocked task proves nothing; hidden dependencies (a package the blocked task should have created) slip through.
+Alternatives rejected: explicit after: markers on task lines (keeps independent tasks running, but adds bookkeeping to every tasks.md).
+Trade-off / known limit: independent tasks after a block wait for the human; a re-run resumes at the first unticked task.
