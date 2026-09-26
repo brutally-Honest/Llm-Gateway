@@ -20,8 +20,8 @@ small. Pass file paths and short findings, not file contents.
 2. If it returns `BLOCKED` or `NEEDS-HUMAN`: record it, then continue with the next
    task only if that task doesn't depend on this one (it's in a different section,
    or its line doesn't mention the blocked task's files). Otherwise stop.
-3. If `DONE`, dispatch **reviewer** with: the feature folder, the task id, and
-   "review `git show <sha>`".
+3. If `DONE`, dispatch **reviewer** with: the feature folder, the task id, the task's
+   line from `tasks.md` verbatim, and "review `git show <sha>`".
 4. If `FIX`, dispatch a **new** implementer with the task id and the reviewer's
    findings verbatim, then review again. Maximum 2 fix rounds per task. A third
    `FIX` stops the run.

@@ -16,10 +16,11 @@ one command per call with no pipes or redirects; a hook denies everything else.
 
 Read `specs/<feature>/spec.md` and the diff you were given. Do not read `plan.md` or
 `tasks.md` to decide what is correct: they came from the same process as the code.
-Use the spec and `AGENTS.md` as the standard.
+Use the spec and `AGENTS.md` as the standard. The task line you were given is the
+claim you are checking (what was built, its proof, its ACs), not part of the standard.
 
 Report:
-1. **AC mapping.** For each AC this task claims (listed at the end of its task line),
+1. **AC mapping.** For each AC the task line claims (listed at its end),
    give the `file:line` that implements it and the test that proves it. No test →
    UNCOVERED. No implementation → MISSING. Open at least two of the tests you mark
    covered, and say whether they assert something that would fail if the code were
