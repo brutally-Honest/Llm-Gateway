@@ -225,8 +225,9 @@ func TestRun_LogLevel(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			inTempDir(t, tc.file)
 			g := startGateway(t, options{env: tc.env})
+			// No wait for the startup line is needed: run writes it after the bind
+			// and before it reads ctx, so it is in the output by the time stop returns.
 			waitListened(t, g)
-			time.Sleep(50 * time.Millisecond) // the startup line follows the bind
 			if code := g.stop(); code != exitOK {
 				t.Errorf("exit code = %d, want 0", code)
 			}
@@ -297,8 +298,7 @@ func TestRun_EmptyEnvIsUnset(t *testing.T) {
 	t.Run("file_value", func(t *testing.T) {
 		inTempDir(t, ptr("log_level: error\n"))
 		g := startGateway(t, options{env: map[string]string{"GATEWAY_LOG_LEVEL": ""}})
-		waitListened(t, g)
-		time.Sleep(50 * time.Millisecond)
+		waitListened(t, g) // as in TestRun_LogLevel, stop returns after any startup line
 		if code := g.stop(); code != exitOK {
 			t.Errorf("exit code = %d, want 0", code)
 		}
