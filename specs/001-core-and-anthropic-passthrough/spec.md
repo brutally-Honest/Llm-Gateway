@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 branch: feat/001-core-and-anthropic-passthrough
 ---
 
@@ -341,11 +341,12 @@ Manual (evidence recorded in the PR)
   an API key, these behave as they do direct:
   - `claude -p` with a prompt that triggers a tool call;
   - an interactive streamed turn;
-  - `/model`.
+  - starting an interactive session: the log shows `HEAD /api/hello` forwarded with
+    upstream's status and `client: unknown` (research.md Q1).
 
-  Logs show `client: claude-code` and `auth: api_key`.
+  `/v1/messages` log lines show `client: claude-code` and `auth: api_key`.
 - **AC45** `ManualSmoke_ClaudeCodeSubscription` — the same checks, logged in with a
-  claude.ai subscription. Logs show `auth: bearer`.
+  claude.ai subscription. `/v1/messages` log lines show `auth: bearer`.
 - **AC46** `ManualDocs_ClaudeCodePage` — `docs/clients/claude-code.md` has the setup for
   both modes, the known limits, the smoke checklist, and the up-to-10-minute shutdown
   note.
