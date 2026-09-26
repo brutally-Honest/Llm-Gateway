@@ -5,11 +5,12 @@ import (
 	"crypto/rand"
 	"errors"
 	"net/http"
-	"runtime/debug"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
+
+	"github.com/brutally-honest/llm-gateway/internal/logging"
 )
 
 // requestIDHeader is the response header that carries the request ID.
@@ -75,11 +76,8 @@ func recoverer(log *zap.Logger) func(http.Handler) http.Handler {
 				if err, ok := v.(error); ok && errors.Is(err, http.ErrAbortHandler) {
 					panic(v)
 				}
-				log.Error("panic recovered",
-					zap.String("request_id", RequestID(r.Context())),
-					zap.Any("panic", v),
-					zap.String("stack", string(debug.Stack())),
-				)
+				logging.LogPanic(log, "panic recovered", v,
+					zap.String("request_id", RequestID(r.Context())))
 				if ww.Status() == 0 {
 					ww.WriteHeader(http.StatusInternalServerError)
 				}

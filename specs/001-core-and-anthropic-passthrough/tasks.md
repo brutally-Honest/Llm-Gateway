@@ -69,7 +69,7 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
 
 ## Logging and goroutines
 
-- [ ] T3 — `internal/logging/panic.go`: `LogPanic(log, msg, v, fields...)` writes one
+- [x] T3 — `internal/logging/panic.go`: `LogPanic(log, msg, v, fields...)` writes one
   error line with `panic_type` (`%T`) and `stack` (`debug.Stack()`), never `v`.
   `internal/server/middleware.go`'s `recoverer` calls it instead of
   `zap.Any("panic", v)`. The two 000 assertions on the `panic` value
