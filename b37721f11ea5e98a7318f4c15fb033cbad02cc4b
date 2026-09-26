@@ -1,0 +1,3 @@
+Spec: specs/000-foundation/spec.md (AC20); research Q2 (answered), Q1 (GNUMAKEFLAGS added)
+Why this approach: clear the flags in the hook itself, so the gate cannot be relaxed from the pusher's environment; the test sets them after cleanEnv so they reach the hook.
+Verified by: with the hook reverted to plain make verify, TestPrePush_Rejects/verify_fails_despite_env_flags fails ("push succeeded, want it rejected"); restored, it passes. GOFLAGS=-count=1 make verify passes.
