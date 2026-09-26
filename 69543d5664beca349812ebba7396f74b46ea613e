@@ -1,0 +1,5 @@
+Spec: specs/000-foundation/spec.md (AC20, AC21); research Q1 (shaped), Q2 (open)
+ADR: docs/decisions/0001-local-gate-instead-of-ci.md
+Why this approach: the hook only orchestrates; message checks stay in .githooks/commit-msg, run once per commit on git log -1 --format=%B in a mktemp file. Deletions, notes and tags push even with verify failing, which the Allows tests use to prove they are skipped rather than merely passing.
+Trade-off / known limit: an inherited MAKEFLAGS=i makes the real make verify pass a lint failure (Q2, open). git push --no-verify bypasses the hook (accepted in ADR 0001).
+Verified by: GOFLAGS=-count=1 make verify; TestPrePush_Rejects/* and TestPrePush_Allows/* pass. Mutation check: an exit-0 hook fails all four Rejects cases; an exit-1 hook fails all four Allows cases.
