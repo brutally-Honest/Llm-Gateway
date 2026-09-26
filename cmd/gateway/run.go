@@ -97,8 +97,7 @@ func run(ctx context.Context, d deps) int {
 	}
 
 	srv := server.New(log, d.mount...)
-	serveErr := make(chan error, 1)
-	go func() { serveErr <- srv.Serve(ln) }()
+	serveErr := logging.Go(log, "serve", func() error { return srv.Serve(ln) })
 
 	configSource := src.File
 	if configSource == "" {

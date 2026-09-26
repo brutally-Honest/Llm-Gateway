@@ -79,7 +79,7 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   value logs its type and a stack, and the sentinel is in no output). Done: it passes,
   and 000's `TestRun_PanicRecovered` and `TestRun_AllLinesJSON` pass with the changed
   assertions. Commit: `feat(logging): log panic types, never values` (AC41)
-- [ ] T4 — `internal/logging/go.go`: `ErrPanicked` and
+- [x] T4 — `internal/logging/go.go`: `ErrPanicked` and
   `Go(log, name, fn func() error) <-chan error`, which starts the goroutine, recovers a
   panic through `LogPanic`, and delivers `fn`'s error, or `ErrPanicked` after a panic,
   on a buffered channel. `cmd/gateway/run.go`'s bare `go func() { serveErr <- ... }()`
