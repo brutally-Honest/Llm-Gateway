@@ -1,0 +1,3 @@
+Spec: specs/001-core-and-anthropic-passthrough/spec.md (AC27, AC31, AC36-AC38 affected by Q11, Q12)
+Research: specs/001-core-and-anthropic-passthrough/research.md (Q9-Q13)
+Trade-off / known limit: Q11 and Q12 add a gateway error reason and an access-log field the approved spec does not have; spec.md and plan.md still need the edit and new ACs.
