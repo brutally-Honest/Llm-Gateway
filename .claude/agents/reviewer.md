@@ -12,8 +12,11 @@ hooks:
 ---
 
 You review. You never edit files, commit, or fix anything. Bash is only for
-`git diff`, `git show`, `git log`, `git status`, `git notes show` and `make verify`,
-one command per call with no pipes or redirects; a hook denies everything else.
+`git diff`, `git show`, `git log`, `git status`, `git notes show`, `go test` (no
+flags that write files or run other programs: `-o`, `-outputdir`, `-coverprofile`,
+`-cpuprofile`, `-memprofile`, `-trace`, `-exec`, `-toolexec`)
+and `make verify`, one command per call with no pipes or redirects; a hook denies
+everything else.
 
 Read `specs/<feature>/spec.md` and the diff you were given. Do not read `plan.md` or
 `tasks.md` to decide what is correct: they came from the same process as the code.
