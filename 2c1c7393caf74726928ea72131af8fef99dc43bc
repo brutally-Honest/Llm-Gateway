@@ -1,0 +1,3 @@
+Spec: specs/000-foundation/spec.md (AC13, AC15); plan.md "What still needs the built binary"
+Why this approach: one go build per test run into t.TempDir(), shared by the SIGTERM and SIGINT subtests; the process runs in an empty temp dir with GATEWAY_* stripped from the env, so only GATEWAY_LISTEN_ADDR=127.0.0.1:0 configures it.
+Verified by: GOFLAGS=-count=1 make verify; go test -race -count=20 ./cmd/gateway/ passed. Mutation: dropping syscall.SIGTERM from main's NotifyContext fails the SIGTERM case with "signal: terminated" while SIGINT passes.
