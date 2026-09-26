@@ -1,0 +1,4 @@
+Spec: specs/001-core-and-anthropic-passthrough (AC42)
+Why this approach: the recover lives in the goroutine's own defer and reuses LogPanic, so the panic line has the same panic_type and stack shape as the recoverer's; a one-slot channel means the goroutine never blocks on a caller that stopped reading.
+Trade-off / known limit: the line names the goroutine (goroutine field) but carries no other context; a fn that calls runtime.Goexit delivers nothing on the channel.
+Verified by: TestGo_RecoversAndLogsJSON (one JSON error line, panic_type and stack, no value, sentinel absent from stdout and zap's error output, ErrPanicked delivered), TestGo_DeliversResult, TestGo_ChannelIsBuffered, all first failing to build with Go undefined; every TestRun_* passes; make verify under -race.
