@@ -125,7 +125,7 @@ listed on each of them.
   git config commands. Done: `grep -n 'make setup' README.md` shows it under Setup,
   and the section lists no `git config` lines. Commit:
   `docs(repo): point the readme setup at make setup`
-- [ ] T13 — `AGENTS.md`: `install: make setup`, `verify: make verify`,
+- [x] T13 — `AGENTS.md`: `install: make setup`, `verify: make verify`,
   `run: make run`. Done: each runs as written in this repo. T18 proves them on a fresh
   clone. Commit: `docs(repo): fill the agents.md commands` (AC24)
 
