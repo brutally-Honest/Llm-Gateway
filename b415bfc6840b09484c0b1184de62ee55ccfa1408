@@ -1,0 +1,4 @@
+Why this approach: permissionMode and hooks in agent frontmatter apply only while that agent runs, so /run-feature can run unattended without loosening any other session.
+Alternatives rejected: acceptEdits in settings.json (applied to every session, including plan mode); git write commands in the settings allowlist (pre-approves git commit everywhere); allowed-tools on the command alone (does not carry into subagents).
+Trade-off / known limit: the hook needs jq and workspace trust for project agents; without jq the implementer falls back to prompts. Commits must use -F files, since chained or redirected commands are never approved.
+Verified by: agent-bash-guard.sh run against sample allowed, chained and unknown commands.
