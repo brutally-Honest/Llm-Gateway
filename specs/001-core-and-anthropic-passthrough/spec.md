@@ -351,9 +351,9 @@ Manual (evidence recorded in the PR)
   note.
 
 ## Open questions
-- [OPEN] Does Claude Code send `HEAD /api/hello` through `ANTHROPIC_BASE_URL`, or
+- [ANSWERED: research.md Q1] Does Claude Code send `HEAD /api/hello` through `ANTHROPIC_BASE_URL`, or
   straight to `api.anthropic.com`, and when?
-- [OPEN] Does Claude Code keep a path prefix in `ANTHROPIC_BASE_URL` (`/anthropic`) on
+- [ANSWERED: research.md Q2] Does Claude Code keep a path prefix in `ANTHROPIC_BASE_URL` (`/anthropic`) on
   every path it calls, including `/api/*`?
-- [OPEN] Which paths beyond `/v1/*` does subscription mode call through the base URL
+- [ANSWERED: research.md Q3] Which paths beyond `/v1/*` does subscription mode call through the base URL
   (for example `/api/oauth/*`), and do they all work through the gateway?
