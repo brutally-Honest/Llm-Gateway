@@ -1,0 +1,5 @@
+Spec: specs/001-core-and-anthropic-passthrough/spec.md
+Research: specs/001-core-and-anthropic-passthrough/research.md (Q5, Q6, Q8)
+Why this approach: PLAN §8 left the engine Proposed pending the Phase 1 spec.
+Alternatives rejected: Director, SetXForwarded, hand-rolled proxy, third-party library.
+Trade-off / known limit: stdlib behaviours change with Go releases; AC8/AC14/AC16 pin them. Status flips to approved with the plan; PLAN §8 row updates in the implementing PR.
