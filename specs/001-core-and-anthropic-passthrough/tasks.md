@@ -198,7 +198,7 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   check. Commit: `feat(proxy): return gateway errors in the adapter's envelope` (AC27,
   AC28, AC29, AC38, AC47) (shaped: Q11) (short-body case superseded by Q19; tests
   moved in T11)
-- [ ] T11 — `internal/core/proxy.go`, disconnects and aborts. The `ErrorHandler`'s first
+- [x] T11 — `internal/core/proxy.go`, disconnects and aborts. The `ErrorHandler`'s first
   branch is now `r.Context().Err() != nil`: it sets `Meta.ClientDisconnected` and writes
   status `499` with no body, no `x-gateway-error` and no `gateway_error`. After headers
   `ReverseProxy` aborts with `http.ErrAbortHandler` and nothing is invented; the T7

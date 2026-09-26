@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"mime"
 	"net"
@@ -61,12 +62,25 @@ const (
 	reasonUpstreamUnreachable = "upstream_unreachable"
 )
 
+// statusClientClosedRequest is the status logged, and sent if anyone still reads it,
+// when the client left before upstream answered (research Q13). It is not an error
+// the gateway created, so it carries no body and no reason.
+const statusClientClosedRequest = 499
+
 // handleError answers a request that got no upstream response headers. ReverseProxy
-// calls it only before any header is written. It never logs and never formats err,
-// which can carry the upstream address.
+// calls it only before any header is written; after them it can only abort, and the
+// access log's Meta.Settle tells whose fault that was. It never logs and never formats
+// err, which can carry the upstream address.
 func (p *Proxy) handleError(w http.ResponseWriter, r *http.Request, err error) {
 	m := MetaFrom(r.Context())
-	status, reason := classify(m, err)
+	status, reason := classify(r.Context(), m, err)
+	if reason == "" {
+		if m != nil {
+			m.ClientDisconnected = true
+		}
+		w.WriteHeader(status)
+		return
+	}
 	contentType, body := p.adapter.ErrorBody(reason)
 	// Set, not Add: ServeHTTP left an empty Content-Type entry on the writer.
 	w.Header().Set("Content-Type", contentType)
@@ -79,12 +93,18 @@ func (p *Proxy) handleError(w http.ResponseWriter, r *http.Request, err error) {
 }
 
 // classify maps a failure before response headers to its status and reason; the
-// first match wins. A failed read of the client's own body is the client's fault,
-// whatever the transport made of it (research Q11). Then a timeout dialling, in the
-// TLS handshake or awaiting headers; then anything else, upstream's fault.
-func classify(m *Meta, err error) (int, string) {
+// first match wins. ctx is the inbound request's context. A client that has left
+// gets 499 and no reason: the gateway created no error. That includes a body short
+// of its Content-Length, because net/http cancels the context on the connection's
+// EOF (research Q19). A failed read of the client's own body on a live connection,
+// such as broken chunked framing, is the client's fault whatever the transport made
+// of it (research Q11). Then a timeout dialling, in the TLS handshake or awaiting
+// headers; then anything else, upstream's fault.
+func classify(ctx context.Context, m *Meta, err error) (int, string) {
 	var netErr net.Error
 	switch {
+	case ctx.Err() != nil:
+		return statusClientClosedRequest, ""
 	case m != nil && m.requestBodyErr() != nil:
 		return http.StatusBadRequest, reasonClientBody
 	case errors.As(err, &netErr) && netErr.Timeout():

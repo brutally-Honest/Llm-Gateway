@@ -113,8 +113,9 @@ upstream sent one.
    a client that left, and it is a disconnect, not a `400` (Q19).
 2. The request-body watcher holds a read error on a live connection: the client's own
    body is malformed, such as broken chunked framing, which keeps the context live.
-   `400`, reason `client_body`, never a 502 (Q11, Q19, AC47). T11 proves with a test
-   that the context stays live on a chunked framing error before relying on it.
+   `400`, reason `client_body`, never a 502 (Q11, Q19, AC47).
+   `TestNetHTTP_ChunkedFramingErrorKeepsContextLive` pins that `net/http` keeps the
+   context live on a chunked framing error, which this order relies on.
 3. `errors.As(err, &net.Error)` with `Timeout()`: `504`, reason `upstream_timeout`. The
    dial, TLS-handshake and response-header timeouts are all `net.Error` timeouts (AC28).
 4. Anything else: `502`, reason `upstream_unreachable` (AC27).

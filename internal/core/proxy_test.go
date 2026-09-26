@@ -4,13 +4,17 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"io"
 	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httputil"
 	"net/url"
 	"reflect"
 	"slices"
@@ -833,69 +837,124 @@ func TestProxy_NoRetry(t *testing.T) {
 	})
 }
 
-// AC47: a request body that is the client's own fault is 400 client_body in the
-// adapter's envelope, never a 502: a body short of its Content-Length (the client
-// half-closes) and broken chunked framing. The client stays connected for the answer.
-func TestProxy_MalformedClientBody400(t *testing.T) {
-	cases := []struct {
-		name string
-		req  string
-	}{
-		{
-			name: "short of content-length",
-			req: rawRequest(http.MethodPost, "/t/v1/messages", "gateway.local",
-				http.Header{"Content-Length": {"100"}}, []string{"Content-Length"}, `{"short":`),
-		},
-		{
-			name: "broken chunked framing",
-			req: rawRequest(http.MethodPost, "/t/v1/messages", "gateway.local",
-				http.Header{"Transfer-Encoding": {"chunked"}}, []string{"Transfer-Encoding"}, "5\r\nhello\r\nzz\r\n"),
-		},
+// bodyTolerantUpstream is an upstream on loopback that reads whatever body arrives,
+// tolerating one that breaks off, and answers 200.
+func bodyTolerantUpstream(t *testing.T) *url.URL {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+	base, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			checkNoLeaksAtEnd(t)
-			// The upstream sees a body that breaks off, so it tolerates the read error.
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				_, _ = io.Copy(io.Discard, r.Body)
-				w.WriteHeader(http.StatusOK)
-			}))
-			t.Cleanup(srv.Close)
-			base, err := url.Parse(srv.URL)
-			if err != nil {
-				t.Fatal(err)
-			}
-			gw := startGateway(t, base, identifyWith())
+	return base
+}
 
-			conn, err := net.Dial("tcp", gw.addr)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer func() { _ = conn.Close() }()
-			if err := conn.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := io.WriteString(conn, tc.req); err != nil {
-				t.Fatal(err)
-			}
-			// Half-close: the gateway reads the end of the body, and can still answer.
-			if err := conn.(*net.TCPConn).CloseWrite(); err != nil {
-				t.Fatal(err)
-			}
-			res, err := http.ReadResponse(bufio.NewReader(conn), nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			body, err := io.ReadAll(res.Body)
-			if err != nil {
-				t.Fatal(err)
-			}
-			checkGatewayError(t, res, body, http.StatusBadRequest, "client_body")
-			if line := gw.accessLine(t, "/t/v1/messages"); line["gateway_error"] != "client_body" {
-				t.Errorf("gateway_error = %v, want client_body", line["gateway_error"])
-			}
-		})
+// dial opens a connection to the gateway that fails the test rather than hang it.
+func (g *gateway) dial(t *testing.T) net.Conn {
+	t.Helper()
+	conn, err := net.Dial("tcp", g.addr)
+	if err != nil {
+		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = conn.Close() })
+	if err := conn.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	return conn
+}
+
+// checkClientDisconnected asserts the request line of a client that left before the
+// response ended: status 499, client_disconnected, and nothing the gateway made up.
+func checkClientDisconnected(t *testing.T, line map[string]any, wantStatus float64) {
+	t.Helper()
+	if line["status"] != wantStatus {
+		t.Errorf("status = %v, want %v", line["status"], wantStatus)
+	}
+	if line["client_disconnected"] != true {
+		t.Errorf("client_disconnected = %v, want true", line["client_disconnected"])
+	}
+	for _, field := range []string{"gateway_error", "upstream_aborted"} {
+		if v, ok := line[field]; ok {
+			t.Errorf("%s = %v, want absent", field, v)
+		}
+	}
+}
+
+// AC47: broken chunked framing on a live connection is the client's own fault: 400
+// client_body in the adapter's envelope, never a 502. A client that has gone is not:
+// a body short of its Content-Length followed by a half-close cancels the request
+// context in net/http, so it counts as a disconnect (Q19) and gets a 499 with no body,
+// as does a client that vanishes mid-body. Neither is a gateway error.
+func TestProxy_MalformedClientBody400(t *testing.T) {
+	t.Run("broken chunked framing", func(t *testing.T) {
+		checkNoLeaksAtEnd(t)
+		gw := startGateway(t, bodyTolerantUpstream(t), identifyWith())
+		res, body := gw.raw(t, rawRequest(http.MethodPost, "/t/v1/messages", "gateway.local",
+			http.Header{"Transfer-Encoding": {"chunked"}}, []string{"Transfer-Encoding"}, "5\r\nhello\r\nzz\r\n"))
+		checkGatewayError(t, res, body, http.StatusBadRequest, "client_body")
+		line := gw.accessLine(t, "/t/v1/messages")
+		if line["gateway_error"] != "client_body" {
+			t.Errorf("gateway_error = %v, want client_body", line["gateway_error"])
+		}
+		if v, ok := line["client_disconnected"]; ok {
+			t.Errorf("client_disconnected = %v, want absent", v)
+		}
+	})
+
+	t.Run("short of content-length, half-closed", func(t *testing.T) {
+		checkNoLeaksAtEnd(t)
+		gw := startGateway(t, bodyTolerantUpstream(t), identifyWith())
+		conn := gw.dial(t)
+		if _, err := io.WriteString(conn, rawRequest(http.MethodPost, "/t/v1/messages", "gateway.local",
+			http.Header{"Content-Length": {"100"}}, []string{"Content-Length"}, `{"short":`)); err != nil {
+			t.Fatal(err)
+		}
+		// Half-close: the gateway reads the end of the body and can still answer.
+		if err := conn.(*net.TCPConn).CloseWrite(); err != nil {
+			t.Fatal(err)
+		}
+		res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode != 499 {
+			t.Errorf("status = %d, want 499", res.StatusCode)
+		}
+		if len(body) != 0 {
+			t.Errorf("body = %q, want none", body)
+		}
+		if got := res.Header.Values("X-Gateway-Error"); got != nil {
+			t.Errorf("X-Gateway-Error = %q, want absent", got)
+		}
+		checkClientDisconnected(t, gw.accessLine(t, "/t/v1/messages"), 499)
+	})
+
+	t.Run("client vanishes mid-body", func(t *testing.T) {
+		checkNoLeaksAtEnd(t)
+		gw := startGateway(t, bodyTolerantUpstream(t), identifyWith())
+		conn := gw.dial(t)
+		// One good chunk and no terminator, then the connection is gone.
+		if _, err := io.WriteString(conn, rawRequest(http.MethodPost, "/t/v1/messages", "gateway.local",
+			http.Header{"Transfer-Encoding": {"chunked"}}, []string{"Transfer-Encoding"}, "5\r\nhello\r\n")); err != nil {
+			t.Fatal(err)
+		}
+		if err := conn.Close(); err != nil {
+			t.Fatal(err)
+		}
+		line := gw.accessLine(t, "/t/v1/messages")
+		checkClientDisconnected(t, line, 499)
+		if line["bytes"] != float64(0) {
+			t.Errorf("bytes = %v, want 0", line["bytes"])
+		}
+	})
 }
 
 // timeoutErr is a net.Error that reports a timeout, as a read deadline on the
@@ -906,33 +965,247 @@ func (timeoutErr) Error() string   { return "i/o timeout" }
 func (timeoutErr) Timeout() bool   { return true }
 func (timeoutErr) Temporary() bool { return true }
 
-// AC28, AC47: the error handler's order. A failed read of the client's own body is
+// AC28, AC30, AC47: the error handler's order. A client that has left wins over
+// everything (499, no reason). Then broken chunked framing in the client's own body is
 // 400 client_body even when the error the transport returns is a net.Error timeout,
 // because the spec keeps upstream_timeout for the connect, TLS-handshake and
 // response-header timeouts. Without a body error the same timeout is 504.
 func TestProxy_ClientBodyBeatsTimeout(t *testing.T) {
 	var _ net.Error = timeoutErr{}
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
 	cases := []struct {
 		name       string
-		bodyErr    error
+		ctx        context.Context
+		brokenBody bool
 		wantStatus int
 		wantReason string
 	}{
-		{"client body read failed", timeoutErr{}, http.StatusBadRequest, "client_body"},
-		{"no client body error", nil, http.StatusGatewayTimeout, "upstream_timeout"},
+		{"broken chunked framing", t.Context(), true, http.StatusBadRequest, "client_body"},
+		{"no client body error", t.Context(), false, http.StatusGatewayTimeout, "upstream_timeout"},
+		{"client gone", cancelled, true, 499, ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			_, m := core.WithMeta(t.Context())
-			if tc.bodyErr != nil {
-				body := core.WatchRequestBody(m, failingBody(tc.bodyErr))
+			if tc.brokenBody {
+				chunked := httputil.NewChunkedReader(strings.NewReader("5\r\nhello\r\nzz\r\n"))
+				body := core.WatchRequestBody(m, io.NopCloser(chunked))
 				if _, err := io.ReadAll(body); err == nil {
-					t.Fatal("reading the watched body succeeded, want its error")
+					t.Fatal("reading the broken chunked body succeeded, want its error")
 				}
 			}
-			status, reason := core.Classify(m, &url.Error{Op: "Post", URL: "http://upstream", Err: timeoutErr{}})
+			status, reason := core.Classify(tc.ctx, m, &url.Error{Op: "Post", URL: "http://upstream", Err: timeoutErr{}})
 			if status != tc.wantStatus || reason != tc.wantReason {
 				t.Fatalf("classify = %d %q, want %d %q", status, reason, tc.wantStatus, tc.wantReason)
+			}
+		})
+	}
+}
+
+// holdingUpstream answers every request by reading its body and then, when midStream
+// is set, sending response headers and event; either way it then holds the response
+// open until its request context is cancelled. arrived closes once it holds;
+// cancelled closes when its context was cancelled. A context never cancelled fails
+// the test at cleanup rather than hanging it.
+func holdingUpstream(t *testing.T, midStream bool, event string) (base *url.URL, arrived, cancelled <-chan struct{}) {
+	t.Helper()
+	arrivedCh := make(chan struct{})
+	cancelledCh := make(chan struct{})
+	up := newUpstream(t, func(w http.ResponseWriter, r *http.Request) {
+		if midStream {
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.WriteHeader(http.StatusOK)
+			_, _ = io.WriteString(w, event)
+			w.(http.Flusher).Flush()
+		}
+		close(arrivedCh)
+		select {
+		case <-r.Context().Done():
+			close(cancelledCh)
+		case <-time.After(5 * time.Second):
+		}
+	})
+	return up.URL, arrivedCh, cancelledCh
+}
+
+// await fails the test if ch does not close within 5s.
+func await(t *testing.T, ch <-chan struct{}, what string) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timed out waiting for %s", what)
+	}
+}
+
+// leaveMidStream sends a request, reads the response headers and event, and closes
+// the connection while upstream still holds the stream open.
+func leaveMidStream(t *testing.T, gw *gateway, path, event string, arrived <-chan struct{}) {
+	t.Helper()
+	conn := gw.dial(t)
+	if _, err := io.WriteString(conn, rawRequest(http.MethodGet, path, "gateway.local", nil, nil, "")); err != nil {
+		t.Fatal(err)
+	}
+	res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]byte, len(event))
+	if _, err := io.ReadFull(res.Body, got); err != nil {
+		t.Fatalf("reading the first event: %v", err)
+	}
+	await(t, arrived, "upstream to hold the stream")
+	if err := conn.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// AC30: a client that leaves cancels the upstream request, both while the gateway
+// waits for response headers and mid-stream. The request line, awaited rather than
+// assumed, has client_disconnected; before headers it has status 499 and nothing the
+// gateway made up.
+func TestProxy_ClientDisconnectCancelsUpstream(t *testing.T) {
+	const event = "event: message_start\ndata: {}\n\n"
+
+	t.Run("waiting for headers", func(t *testing.T) {
+		checkNoLeaksAtEnd(t)
+		base, arrived, cancelled := holdingUpstream(t, false, "")
+		gw := startGateway(t, base, identifyWith())
+		conn := gw.dial(t)
+		if _, err := io.WriteString(conn, rawRequest(http.MethodPost, "/t/v1/messages", "gateway.local",
+			http.Header{"Content-Length": {"2"}}, []string{"Content-Length"}, "{}")); err != nil {
+			t.Fatal(err)
+		}
+		await(t, arrived, "upstream to receive the request")
+		if err := conn.Close(); err != nil {
+			t.Fatal(err)
+		}
+		await(t, cancelled, "upstream's request context to be cancelled")
+		checkClientDisconnected(t, gw.accessLine(t, "/t/v1/messages"), 499)
+	})
+
+	t.Run("mid-stream", func(t *testing.T) {
+		checkNoLeaksAtEnd(t)
+		base, arrived, cancelled := holdingUpstream(t, true, event)
+		gw := startGateway(t, base, identifyWith())
+		leaveMidStream(t, gw, "/t/v1/stream", event, arrived)
+		await(t, cancelled, "upstream's request context to be cancelled")
+		checkClientDisconnected(t, gw.accessLine(t, "/t/v1/stream"), 200)
+	})
+}
+
+// dyingUpstream sends response headers and one chunk holding event, then drops the
+// connection without the chunked terminator.
+func dyingUpstream(t *testing.T, event string) *url.URL {
+	t.Helper()
+	return newRawUpstream(t, "http", func(conn net.Conn) {
+		defer func() { _ = conn.Close() }()
+		r, err := http.ReadRequest(bufio.NewReader(conn))
+		if err != nil {
+			return
+		}
+		_, _ = io.Copy(io.Discard, r.Body)
+		_, _ = fmt.Fprintf(conn, "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n"+
+			"Transfer-Encoding: chunked\r\n\r\n%x\r\n%s\r\n", len(event), event)
+	}).URL
+}
+
+// AC31: when upstream dies after response headers, the client's connection ends: the
+// body breaks off after exactly what upstream sent, with no invented event and no
+// clean terminator.
+func TestProxy_UpstreamDiesMidStreamAbortsClient(t *testing.T) {
+	checkNoLeaksAtEnd(t)
+	const event = "event: message_start\ndata: {}\n\n"
+	gw := startGateway(t, dyingUpstream(t, event), identifyWith())
+	conn := gw.dial(t)
+	if _, err := io.WriteString(conn, rawRequest(http.MethodGet, "/t/v1/stream", "gateway.local", nil, nil, "")); err != nil {
+		t.Fatal(err)
+	}
+	res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want upstream's 200", res.StatusCode)
+	}
+	body, err := io.ReadAll(res.Body)
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Errorf("reading the body: err = %v, want the connection to end mid-body (unexpected EOF)", err)
+	}
+	if string(body) != event {
+		t.Errorf("body = %q, want exactly upstream's %q", body, event)
+	}
+}
+
+// AC48: the request line tells the two aborts apart. Upstream dying after headers is
+// upstream_aborted and not client_disconnected; a client leaving mid-stream is the
+// reverse; a completed response and a gateway 502 have neither.
+func TestAccessLog_UpstreamAbortedField(t *testing.T) {
+	const event = "event: message_start\ndata: {}\n\n"
+	const path = "/t/v1/stream"
+	cases := []struct {
+		name                          string
+		run                           func(t *testing.T) *gateway
+		wantAborted, wantDisconnected bool
+	}{
+		{
+			name: "upstream dies after headers",
+			run: func(t *testing.T) *gateway {
+				gw := startGateway(t, dyingUpstream(t, event), identifyWith())
+				conn := gw.dial(t)
+				if _, err := io.WriteString(conn, rawRequest(http.MethodGet, path, "gateway.local", nil, nil, "")); err != nil {
+					t.Fatal(err)
+				}
+				// Read until the gateway drops the connection.
+				_, _ = io.Copy(io.Discard, conn)
+				return gw
+			},
+			wantAborted: true,
+		},
+		{
+			name: "client leaves mid-stream",
+			run: func(t *testing.T) *gateway {
+				base, arrived, cancelled := holdingUpstream(t, true, event)
+				gw := startGateway(t, base, identifyWith())
+				leaveMidStream(t, gw, path, event, arrived)
+				await(t, cancelled, "upstream's request context to be cancelled")
+				return gw
+			},
+			wantDisconnected: true,
+		},
+		{
+			name: "completed",
+			run: func(t *testing.T) *gateway {
+				gw := startGateway(t, newUpstream(t, nil).URL, identifyWith())
+				gw.raw(t, rawRequest(http.MethodGet, path, "gateway.local", nil, nil, ""))
+				return gw
+			},
+		},
+		{
+			name: "gateway 502",
+			run: func(t *testing.T) *gateway {
+				gw := startGateway(t, refusedURL(t), identifyWith())
+				gw.raw(t, rawRequest(http.MethodGet, path, "gateway.local", nil, nil, ""))
+				return gw
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			checkNoLeaksAtEnd(t)
+			line := tc.run(t).accessLine(t, path)
+			for field, want := range map[string]bool{
+				"upstream_aborted":    tc.wantAborted,
+				"client_disconnected": tc.wantDisconnected,
+			} {
+				got, ok := line[field]
+				if want && got != true {
+					t.Errorf("%s = %v, want true", field, got)
+				}
+				if !want && ok {
+					t.Errorf("%s = %v, want absent", field, got)
+				}
 			}
 		})
 	}
@@ -983,5 +1256,38 @@ func TestAccessLog_GatewayErrorField(t *testing.T) {
 				t.Errorf("status %d: gateway_error = %v, want %v", res.StatusCode, got, tc.want)
 			}
 		})
+	}
+}
+
+// Q19: the error handler's context branch comes first, so a 400 client_body is only
+// reachable if net/http keeps the request context live when the client's chunked
+// framing is broken. This pins that behaviour of net/http itself, without the proxy:
+// the handler's body read fails, and its context is not cancelled.
+func TestNetHTTP_ChunkedFramingErrorKeepsContextLive(t *testing.T) {
+	type result struct {
+		readErr error
+		ctxErr  error
+	}
+	got := make(chan result, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := io.Copy(io.Discard, r.Body)
+		// Give a cancellation that follows the read error time to land.
+		time.Sleep(50 * time.Millisecond)
+		got <- result{readErr: err, ctxErr: r.Context().Err()}
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	t.Cleanup(srv.Close)
+	addr := strings.TrimPrefix(srv.URL, "http://")
+	res, _ := rawAt(t, addr, rawRequest(http.MethodPost, "/", "gateway.local",
+		http.Header{"Transfer-Encoding": {"chunked"}}, []string{"Transfer-Encoding"}, "5\r\nhello\r\nzz\r\n"))
+	if res.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want the handler's 400", res.StatusCode)
+	}
+	r := <-got
+	if r.readErr == nil {
+		t.Fatal("reading a body with broken chunked framing succeeded, want an error")
+	}
+	if r.ctxErr != nil {
+		t.Fatalf("request context = %v after a chunked framing error, want live", r.ctxErr)
 	}
 }
