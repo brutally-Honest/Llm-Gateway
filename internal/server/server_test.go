@@ -309,7 +309,8 @@ func TestRecoverer_PanicGives500(t *testing.T) {
 }
 
 // http.ErrAbortHandler is re-panicked: net/http drops the connection without a
-// response, nothing is logged, and the request still leaves the in-flight count.
+// response, recoverer logs nothing (the access line is the only line, Q8), and the
+// request still leaves the in-flight count.
 func TestRecoverer_AbortHandler(t *testing.T) {
 	h := start(t, func(r chi.Router) {
 		r.Get("/abort", func(http.ResponseWriter, *http.Request) { panic(http.ErrAbortHandler) })
@@ -320,8 +321,11 @@ func TestRecoverer_AbortHandler(t *testing.T) {
 		t.Fatalf("got a response (%d), want the connection aborted", resp.StatusCode)
 	}
 	h.waitInFlight(0)
-	if out := h.logs.String(); out != "" {
-		t.Errorf("abort was logged, want silence\n%s", out)
+	h.waitLines("request", 1)
+	for _, l := range h.lines() {
+		if l["msg"] != "request" {
+			t.Errorf("abort logged more than its access line: %v\n%s", l, h.logs.String())
+		}
 	}
 }
 

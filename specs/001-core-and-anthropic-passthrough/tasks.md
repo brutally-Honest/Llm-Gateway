@@ -119,7 +119,7 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   (same bytes, same read sizes, first error kept). Done: the three pass under `-race`.
   Commit: `feat(proxy): add the adapter, profile and metadata types` (AC34)
   (shaped: Q12)
-- [ ] T7 — `internal/server/middleware.go`: `accessLog` creates the `Meta`
+- [x] T7 — `internal/server/middleware.go`: `accessLog` creates the `Meta`
   (`core.WithMeta`) before the handler chain and logs from a `defer`, so a handler that
   ends in `http.ErrAbortHandler` still writes its line; in the `defer` it calls
   `Meta.Settle(r.Context())`. When `Meta.Protocol != ""` the `request` line gains
