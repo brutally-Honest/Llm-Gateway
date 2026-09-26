@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"runtime/pprof"
 	"strings"
 	"sync"
 	"testing"
@@ -152,14 +153,25 @@ type gateway struct {
 
 func startGateway(t *testing.T, base *url.URL, identify func(*http.Request) string) *gateway {
 	t.Helper()
-	logs := &syncBuffer{}
-	log := logging.New(logs, "debug")
-	up := config.Upstream{
+	return startGatewayWith(t, upstreamConfig(base), identify)
+}
+
+// upstreamConfig is an upstream at base with timeouts no test waits for.
+func upstreamConfig(base *url.URL) config.Upstream {
+	return config.Upstream{
 		BaseURL:               base,
 		ConnectTimeout:        5 * time.Second,
 		TLSHandshakeTimeout:   5 * time.Second,
 		ResponseHeaderTimeout: 30 * time.Second,
 	}
+}
+
+// startGatewayWith is startGateway with the whole upstream config, for the tests
+// that need one timeout short.
+func startGatewayWith(t *testing.T, up config.Upstream, identify func(*http.Request) string) *gateway {
+	t.Helper()
+	logs := &syncBuffer{}
+	log := logging.New(logs, "debug")
 	a := testAdapter{}
 	p := core.NewProxy(a, up, identify, log)
 	srv := server.New(log, func(r chi.Router) { r.Handle(a.Prefix()+"/*", p) })
@@ -189,6 +201,10 @@ func rawAt(t *testing.T, addr, req string) (*http.Response, []byte) {
 		t.Fatal(err)
 	}
 	defer func() { _ = conn.Close() }()
+	// A gateway that never answers fails the test instead of hanging it.
+	if err := conn.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := io.WriteString(conn, req); err != nil {
 		t.Fatal(err)
 	}
@@ -244,4 +260,47 @@ func (g *gateway) accessLine(t *testing.T, path string) map[string]any {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+}
+
+// checkNoLeaksAtEnd registers the plan's leak check. Call it first in a test, so it
+// runs after every other cleanup has closed the gateway and the upstreams. It polls
+// for up to 2s for the goroutine profile to hold no stack through internal/core (a
+// proxy still at work) and no connection handler of the test's own servers.
+func checkNoLeaksAtEnd(t *testing.T) {
+	t.Helper()
+	t.Cleanup(func() {
+		t.Helper()
+		deadline := time.Now().Add(2 * time.Second)
+		for {
+			leaked := leakedStacks()
+			if len(leaked) == 0 {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Errorf("%d goroutine(s) left behind:\n\n%s", len(leaked), strings.Join(leaked, "\n\n"))
+				return
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+	})
+}
+
+// leakedStacks are the goroutine stacks, other than the caller's, that run proxy
+// code or serve a connection with a handler from this test package.
+func leakedStacks() []string {
+	var buf bytes.Buffer
+	_ = pprof.Lookup("goroutine").WriteTo(&buf, 2)
+	stacks := strings.Split(buf.String(), "\n\n")
+	var leaked []string
+	for _, s := range stacks {
+		if strings.Contains(s, "core_test.leakedStacks") {
+			continue // the goroutine writing the profile: this one
+		}
+		inProxy := strings.Contains(s, "/internal/core.")
+		inTestHandler := strings.Contains(s, "net/http.(*conn).serve") && strings.Contains(s, "/internal/core_test.")
+		if inProxy || inTestHandler {
+			leaked = append(leaked, s)
+		}
+	}
+	return leaked
 }

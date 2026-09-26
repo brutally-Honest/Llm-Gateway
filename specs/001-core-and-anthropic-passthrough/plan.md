@@ -106,9 +106,10 @@ upstream sent one.
    the header only with status `499`, no body (Q13). No `x-gateway-error`, no
    `gateway_error`: the gateway did not create an error (AC30).
 2. The request-body watcher holds a read error: the client's own body is malformed or
-   ended short. `400`, reason `client_body`, never a 502 (Q11, AC47). The context is
-   still live here, for example a client that half-closes after too few bytes or sends
-   broken chunked framing; a client that simply vanished was caught by step 1.
+   ended short. `400`, reason `client_body`, never a 502 (Q11, AC47). A client that
+   sends broken chunked framing keeps a live context. One that half-closes after too
+   few bytes does not: `net/http` cancels the request context on the connection's
+   `EOF`, so step 1 as ordered would catch it first (found building T10; open, Q19).
 3. `errors.As(err, &net.Error)` with `Timeout()`: `504`, reason `upstream_timeout`. The
    dial, TLS-handshake and response-header timeouts are all `net.Error` timeouts (AC28).
 4. Anything else: `502`, reason `upstream_unreachable` (AC27).

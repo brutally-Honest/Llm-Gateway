@@ -15,3 +15,6 @@ func ResponseBodyErr(m *Meta) error                             { return m.respo
 
 // FlushInterval is the built ReverseProxy's flush interval.
 func FlushInterval(p *Proxy) time.Duration { return p.rp.FlushInterval }
+
+// Classify is the error handler's status and reason for err.
+func Classify(m *Meta, err error) (int, string) { return classify(m, err) }

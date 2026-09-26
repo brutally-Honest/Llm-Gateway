@@ -616,3 +616,372 @@ func TestAccessLog_ProxyFields(t *testing.T) {
 		}
 	}
 }
+
+// rawUpstream is an upstream that is only a TCP listener on loopback, for the tests
+// that must hang or drop a connection where an HTTP server would answer. serve runs
+// once per accepted connection; the listener and every connection close at cleanup.
+type rawUpstream struct {
+	URL *url.URL
+
+	mu       sync.Mutex
+	accepted int
+}
+
+func newRawUpstream(t *testing.T, scheme string, serve func(net.Conn)) *rawUpstream {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	u := &rawUpstream{URL: &url.URL{Scheme: scheme, Host: ln.Addr().String()}}
+	var (
+		wg     sync.WaitGroup
+		connMu sync.Mutex
+		conns  []net.Conn
+	)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			u.mu.Lock()
+			u.accepted++
+			u.mu.Unlock()
+			connMu.Lock()
+			conns = append(conns, conn)
+			connMu.Unlock()
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				serve(conn)
+			}()
+		}
+	}()
+	t.Cleanup(func() {
+		_ = ln.Close()
+		connMu.Lock()
+		for _, c := range conns {
+			_ = c.Close()
+		}
+		connMu.Unlock()
+		wg.Wait()
+	})
+	return u
+}
+
+// connections is how many connections the upstream accepted.
+func (u *rawUpstream) connections() int {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return u.accepted
+}
+
+// hang reads whatever the gateway sends and never writes a byte back.
+func hang(conn net.Conn) { _, _ = io.Copy(io.Discard, conn) }
+
+// refusedURL is an http URL on loopback where nothing listens.
+func refusedURL(t *testing.T) *url.URL {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := ln.Addr().String()
+	if err := ln.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return &url.URL{Scheme: "http", Host: addr}
+}
+
+// checkGatewayError asserts a gateway-made error: the status, the test adapter's
+// envelope with its one content type, and x-gateway-error naming the reason.
+func checkGatewayError(t *testing.T, res *http.Response, body []byte, status int, reason string) {
+	t.Helper()
+	if res.StatusCode != status {
+		t.Errorf("status = %d, want %d", res.StatusCode, status)
+	}
+	if got := res.Header.Values("X-Gateway-Error"); !reflect.DeepEqual(got, []string{reason}) {
+		t.Errorf("X-Gateway-Error = %q, want %q", got, reason)
+	}
+	wantType, wantBody := testAdapter{}.ErrorBody(reason)
+	if got := res.Header.Values("Content-Type"); !reflect.DeepEqual(got, []string{wantType}) {
+		t.Errorf("Content-Type = %q, want %q", got, wantType)
+	}
+	if !bytes.Equal(body, wantBody) {
+		t.Errorf("body = %q, want %q", body, wantBody)
+	}
+}
+
+// AC27, AC28 (core half): every upstream failure before response headers is a
+// gateway-made error in the adapter's envelope. A refused connection and a failed TLS
+// handshake are 502 upstream_unreachable; each of the three timeouts is 504
+// upstream_timeout.
+func TestProxy_GatewayErrorStatus(t *testing.T) {
+	const short = 200 * time.Millisecond
+	cases := []struct {
+		name   string
+		up     func(t *testing.T) config.Upstream
+		status int
+		reason string
+	}{
+		{
+			name:   "connection refused",
+			up:     func(t *testing.T) config.Upstream { return upstreamConfig(refusedURL(t)) },
+			status: http.StatusBadGateway, reason: "upstream_unreachable",
+		},
+		{
+			name: "tls failure",
+			up: func(t *testing.T) config.Upstream {
+				// A certificate the gateway does not trust.
+				srv := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+				t.Cleanup(srv.Close)
+				base, err := url.Parse(srv.URL)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return upstreamConfig(base)
+			},
+			status: http.StatusBadGateway, reason: "upstream_unreachable",
+		},
+		{
+			name: "connect timeout",
+			up: func(t *testing.T) config.Upstream {
+				// Loopback connects too fast to time out on its own, so the dial's
+				// deadline has passed before it starts. The listener never answers, so
+				// a dial that ignored the timeout would hang the test.
+				up := upstreamConfig(newRawUpstream(t, "http", hang).URL)
+				up.ConnectTimeout = time.Nanosecond
+				return up
+			},
+			status: http.StatusGatewayTimeout, reason: "upstream_timeout",
+		},
+		{
+			name: "tls handshake timeout",
+			up: func(t *testing.T) config.Upstream {
+				up := upstreamConfig(newRawUpstream(t, "https", hang).URL)
+				up.TLSHandshakeTimeout = short
+				return up
+			},
+			status: http.StatusGatewayTimeout, reason: "upstream_timeout",
+		},
+		{
+			name: "response header timeout",
+			up: func(t *testing.T) config.Upstream {
+				up := upstreamConfig(newRawUpstream(t, "http", hang).URL)
+				up.ResponseHeaderTimeout = short
+				return up
+			},
+			status: http.StatusGatewayTimeout, reason: "upstream_timeout",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			checkNoLeaksAtEnd(t)
+			gw := startGatewayWith(t, tc.up(t), identifyWith())
+			res, body := gw.raw(t, rawRequest(http.MethodPost, "/t/v1/messages", "gateway.local",
+				http.Header{"Content-Length": {"2"}}, []string{"Content-Length"}, "{}"))
+			checkGatewayError(t, res, body, tc.status, tc.reason)
+		})
+	}
+}
+
+// AC29: the gateway never retries. An upstream that drops the connection after
+// reading the request, and an upstream 500, each see exactly one attempt.
+func TestProxy_NoRetry(t *testing.T) {
+	req := rawRequest(http.MethodPost, "/t/v1/messages", "gateway.local",
+		http.Header{"Content-Length": {"2"}}, []string{"Content-Length"}, "{}")
+
+	t.Run("unreachable", func(t *testing.T) {
+		checkNoLeaksAtEnd(t)
+		var (
+			mu    sync.Mutex
+			reads int
+		)
+		up := newRawUpstream(t, "http", func(conn net.Conn) {
+			defer func() { _ = conn.Close() }()
+			if r, err := http.ReadRequest(bufio.NewReader(conn)); err == nil {
+				_, _ = io.Copy(io.Discard, r.Body)
+				mu.Lock()
+				reads++
+				mu.Unlock()
+			}
+		})
+		gw := startGateway(t, up.URL, identifyWith())
+		res, body := gw.raw(t, req)
+		checkGatewayError(t, res, body, http.StatusBadGateway, "upstream_unreachable")
+		mu.Lock()
+		defer mu.Unlock()
+		if got := up.connections(); got != 1 || reads != 1 {
+			t.Errorf("upstream saw %d connections and %d requests, want 1 and 1", got, reads)
+		}
+	})
+
+	t.Run("upstream 500", func(t *testing.T) {
+		checkNoLeaksAtEnd(t)
+		up := newUpstream(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		})
+		gw := startGateway(t, up.URL, identifyWith())
+		res, _ := gw.raw(t, req)
+		if res.StatusCode != http.StatusInternalServerError {
+			t.Errorf("status = %d, want 500", res.StatusCode)
+		}
+		up.only(t)
+	})
+}
+
+// AC47: a request body that is the client's own fault is 400 client_body in the
+// adapter's envelope, never a 502: a body short of its Content-Length (the client
+// half-closes) and broken chunked framing. The client stays connected for the answer.
+func TestProxy_MalformedClientBody400(t *testing.T) {
+	cases := []struct {
+		name string
+		req  string
+	}{
+		{
+			name: "short of content-length",
+			req: rawRequest(http.MethodPost, "/t/v1/messages", "gateway.local",
+				http.Header{"Content-Length": {"100"}}, []string{"Content-Length"}, `{"short":`),
+		},
+		{
+			name: "broken chunked framing",
+			req: rawRequest(http.MethodPost, "/t/v1/messages", "gateway.local",
+				http.Header{"Transfer-Encoding": {"chunked"}}, []string{"Transfer-Encoding"}, "5\r\nhello\r\nzz\r\n"),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			checkNoLeaksAtEnd(t)
+			// The upstream sees a body that breaks off, so it tolerates the read error.
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = io.Copy(io.Discard, r.Body)
+				w.WriteHeader(http.StatusOK)
+			}))
+			t.Cleanup(srv.Close)
+			base, err := url.Parse(srv.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			gw := startGateway(t, base, identifyWith())
+
+			conn, err := net.Dial("tcp", gw.addr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = conn.Close() }()
+			if err := conn.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := io.WriteString(conn, tc.req); err != nil {
+				t.Fatal(err)
+			}
+			// Half-close: the gateway reads the end of the body, and can still answer.
+			if err := conn.(*net.TCPConn).CloseWrite(); err != nil {
+				t.Fatal(err)
+			}
+			res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			body, err := io.ReadAll(res.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			checkGatewayError(t, res, body, http.StatusBadRequest, "client_body")
+			if line := gw.accessLine(t, "/t/v1/messages"); line["gateway_error"] != "client_body" {
+				t.Errorf("gateway_error = %v, want client_body", line["gateway_error"])
+			}
+		})
+	}
+}
+
+// timeoutErr is a net.Error that reports a timeout, as a read deadline on the
+// client's connection would.
+type timeoutErr struct{}
+
+func (timeoutErr) Error() string   { return "i/o timeout" }
+func (timeoutErr) Timeout() bool   { return true }
+func (timeoutErr) Temporary() bool { return true }
+
+// AC28, AC47: the error handler's order. A failed read of the client's own body is
+// 400 client_body even when the error the transport returns is a net.Error timeout,
+// because the spec keeps upstream_timeout for the connect, TLS-handshake and
+// response-header timeouts. Without a body error the same timeout is 504.
+func TestProxy_ClientBodyBeatsTimeout(t *testing.T) {
+	var _ net.Error = timeoutErr{}
+	cases := []struct {
+		name       string
+		bodyErr    error
+		wantStatus int
+		wantReason string
+	}{
+		{"client body read failed", timeoutErr{}, http.StatusBadRequest, "client_body"},
+		{"no client body error", nil, http.StatusGatewayTimeout, "upstream_timeout"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, m := core.WithMeta(t.Context())
+			if tc.bodyErr != nil {
+				body := core.WatchRequestBody(m, failingBody(tc.bodyErr))
+				if _, err := io.ReadAll(body); err == nil {
+					t.Fatal("reading the watched body succeeded, want its error")
+				}
+			}
+			status, reason := core.Classify(m, &url.Error{Op: "Post", URL: "http://upstream", Err: timeoutErr{}})
+			if status != tc.wantStatus || reason != tc.wantReason {
+				t.Fatalf("classify = %d %q, want %d %q", status, reason, tc.wantStatus, tc.wantReason)
+			}
+		})
+	}
+}
+
+// AC38: the request line has gateway_error on a gateway-made 502 and 504, and none on
+// an error upstream sent.
+func TestAccessLog_GatewayErrorField(t *testing.T) {
+	cases := []struct {
+		name string
+		up   func(t *testing.T) config.Upstream
+		want any
+	}{
+		{
+			name: "502",
+			up:   func(t *testing.T) config.Upstream { return upstreamConfig(refusedURL(t)) },
+			want: "upstream_unreachable",
+		},
+		{
+			name: "504",
+			up: func(t *testing.T) config.Upstream {
+				up := upstreamConfig(newRawUpstream(t, "http", hang).URL)
+				up.ResponseHeaderTimeout = 200 * time.Millisecond
+				return up
+			},
+			want: "upstream_timeout",
+		},
+		{
+			name: "upstream 502",
+			up: func(t *testing.T) config.Upstream {
+				up := newUpstream(t, func(w http.ResponseWriter, _ *http.Request) {
+					w.WriteHeader(http.StatusBadGateway)
+				})
+				return upstreamConfig(up.URL)
+			},
+			want: nil,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			checkNoLeaksAtEnd(t)
+			gw := startGatewayWith(t, tc.up(t), identifyWith())
+			res, _ := gw.raw(t, rawRequest(http.MethodGet, "/t/v1/models", "gateway.local", nil, nil, ""))
+			line := gw.accessLine(t, "/t/v1/models")
+			if got, ok := line["gateway_error"]; tc.want == nil && ok {
+				t.Errorf("status %d: gateway_error = %v, want absent", res.StatusCode, got)
+			} else if got != tc.want {
+				t.Errorf("status %d: gateway_error = %v, want %v", res.StatusCode, got, tc.want)
+			}
+		})
+	}
+}

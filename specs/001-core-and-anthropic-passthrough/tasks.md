@@ -177,10 +177,10 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   and a non-streamed request). Done: those pass under `-race`. Commit:
   `feat(proxy): stream responses back unchanged` (AC18, AC19, AC23, AC26, AC36)
   (shaped: Q6, Q7, Q17, Q18)
-- [ ] T10 — `internal/core/proxy.go`, gateway-made errors: an `ErrorHandler`
-  (first match wins: a `net.Error` timeout is `504` `upstream_timeout`; the request-body
-  watcher holds a read error is `400` `client_body`; anything else is `502`
-  `upstream_unreachable`), where the reason gives `Adapter.ErrorBody(reason)`, its
+- [x] T10 — `internal/core/proxy.go`, gateway-made errors: an `ErrorHandler`
+  (first match wins, as plan.md orders it: the request-body watcher holds a read error
+  is `400` `client_body`; a `net.Error` timeout is `504` `upstream_timeout`; anything
+  else is `502` `upstream_unreachable`), where the reason gives `Adapter.ErrorBody(reason)`, its
   content type, an `x-gateway-error: <reason>` header, and `Meta.GatewayError`. The
   handler never logs and never formats `err`. The request body is wrapped in the
   request watcher (T6) after `Rewrite`'s five steps, keeping `ContentLength`.
@@ -192,7 +192,8 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   counted at the upstream), `TestProxy_MalformedClientBody400` (a body short of its
   `Content-Length` after a half-close, and broken chunked framing, each give `400`,
   the adapter's envelope and `x-gateway-error: client_body`, never `502`; the vanished
-  client half is T11), and `TestAccessLog_GatewayErrorField` (`gateway_error` on a `502`
+  client half is T11), `TestProxy_ClientBodyBeatsTimeout` (a body read error beats a
+  `net.Error` timeout from the transport), and `TestAccessLog_GatewayErrorField` (`gateway_error` on a `502`
   and a `504`, absent on upstream errors). Done: those pass under `-race` with the leak
   check. Commit: `feat(proxy): return gateway errors in the adapter's envelope` (AC27,
   AC28, AC29, AC38, AC47) (shaped: Q11)
@@ -212,7 +213,7 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   vanishes instead gets no body and `client_disconnected: true`). Done: those pass under
   `-race` with the leak check, and T10's tests still pass. Commit:
   `feat(proxy): handle client disconnects and upstream aborts` (AC30, AC31, AC47, AC48)
-  (shaped: Q8, Q12, Q13)
+  (shaped: Q8, Q12, Q13) (blocked: Q19)
 - [ ] T12 — `internal/core/registry.go`: `NewRegistry(log)`, `AddProfile`,
   `AddAdapter(a, up)` (builds a `Proxy` per adapter), `Identify(r)` (first matching
   profile in registration order, else `ClientUnknown`) and `Mount(chi.Router)` (the

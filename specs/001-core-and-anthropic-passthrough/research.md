@@ -313,3 +313,25 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
 - Outcome: tasks: T9 changed from `(blocked: Q18)` to `(shaped: Q18)`; T14 gains the
   test and AC26; AC26's coverage row becomes `T9, T14`. plan: AC26's test row names
   both files. No spec change.
+
+## Q19 — Is the inbound context still live when a client half-closes after a short body?
+- Status: open     Level: technical
+- Blocks / shapes: plan.md "Error handler" steps 1–2; AC47; T11 (the `ErrorHandler`'s
+  context-first branch)
+- Context: 2026-09-26. Building T10 (go1.25.4). Plan step 2 says that for a client that
+  half-closes after too few bytes "the context is still live", so the body-watcher
+  branch catches it. It is not: `net/http`'s `connReader` cancels the request context
+  on any read error on the connection, including the `EOF` a half-close delivers. In
+  `TestProxy_MalformedClientBody400`'s short-body case, the `ErrorHandler` sees
+  `r.Context().Err() != nil` and `err` is `context canceled`, every run; the watcher
+  holds `io.ErrUnexpectedEOF`. The broken-chunked case keeps a live context. The
+  gateway can still answer on the half-closed connection, and the test reads the `400`.
+  T10 has no context branch (it is T11's), so T10's `400` holds.
+- Question: T11 makes `r.Context().Err() != nil` the first branch (`499`, no body).
+  With the ordering in plan.md and tasks.md, the half-close short-body case of AC47
+  becomes a `499` and T10's test fails. Should the body-watcher branch come before the
+  context branch (a vanished client then gives `400` if its body read had already
+  failed, though nobody reads it), or should the context branch tell a vanished client
+  from a half-closed one some other way, or does AC47's short-body case need another
+  shape?
+- Answer: open. No working default applied; T10 does not depend on it.
