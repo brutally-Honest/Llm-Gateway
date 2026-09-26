@@ -1,0 +1,3 @@
+Why this approach: the reviewer judges the implementer's work, so its independence has to be enforced by a tool boundary, not by instructions it could ignore.
+Trade-off / known limit: fails closed without jq; git diff --output is denied since it writes a file.
+Verified by: agent-bash-guard.sh reviewer against read-only, write, chained and redirected commands.
