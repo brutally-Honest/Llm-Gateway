@@ -1,0 +1,3 @@
+Spec: specs/001-core-and-anthropic-passthrough (AC25)
+Why this approach: the fixture README once said 'bearer tokens' in lowercase; a case-sensitive check would have missed a lowercase leak just as easily.
+Verified by: docs only; the scanner is built in T18.
