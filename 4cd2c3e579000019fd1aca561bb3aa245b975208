@@ -1,0 +1,4 @@
+Spec: specs/001-core-and-anthropic-passthrough/spec.md (AC26, AC34)
+Why this approach: AC34's purity test forbids 'anthropic' anywhere under internal/core/, so the literal header family can only be proven outside core; the adapter's test is the natural home.
+Alternatives rejected: accepting the neutral X-Ratelimit-* core test as full proof (owner chose the literal proof); proving it in T21's golden replay (those headers arrive only on a 200).
+Changes: research.md Q18 answered (dated line); tasks.md T9 (shaped: Q18), T14 gains the test and AC26, coverage row AC26 = T9, T14; plan.md AC evidence row 26 names both test files.
