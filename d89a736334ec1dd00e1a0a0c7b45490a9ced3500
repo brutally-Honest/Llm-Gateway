@@ -1,0 +1,6 @@
+Spec: specs/001-core-and-anthropic-passthrough/spec.md (AC18, AC26, AC34)
+Research: Q17 (answered: net/http sniffs a Content-Type when none is set; the empty entry stops it), Q18 (open: which test and task carry the literal anthropic-ratelimit-* proof for AC26)
+Why this approach: review of T9 (ca3f86a) found both roadblocks written up only in its git note and plan.md; AGENTS.md puts every roadblock in research.md. The spec is silent on which package AC26's test lives in, and AC34 forbids the header name in core, so the owner decides between a T14 test and accepting the neutral stand-in.
+Alternatives rejected: amending ca3f86a with Q17 (the amend was refused by the permission system); adding an anthropic test now (the adapter is T14's scope and does not exist yet).
+Trade-off / known limit: AC26 stays partly proven (the mechanism, not the named header family) until Q18 is answered. ca3f86a's own note still lists only Q6 and Q7.
+Verified by: make verify.
