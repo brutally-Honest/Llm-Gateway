@@ -136,7 +136,7 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   `client_disconnected` from `r.Context().Err()` there.
 
 ## Q9 — Does the upstream transport honour `HTTP_PROXY` / `HTTPS_PROXY`?
-- Status: open     Level: flow
+- Status: answered     Level: flow
 - Blocks / shapes: plan.md "Approach: transport"
 - Context: 2026-09-26. The spec fixes dial, TLS-handshake and header timeouts and
   system roots, and says nothing about an outbound proxy. Go's default transport sends
@@ -147,10 +147,11 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   user behind a corporate proxy cannot reach Anthropic otherwise, and it is what a
   direct Claude Code connection would do. Cost: an env var the gateway never logs can
   change where prompts go. Needs a decision before the transport task.
-- Outcome: —
+- 2026-09-26 (owner): Answered: yes, honour the standard proxy env vars (`http.ProxyFromEnvironment`), as the plan's working default has it.
+- Outcome: plan: no change (already the Transport's `Proxy`).
 
 ## Q10 — How is the golden stream recorded without an API key?
-- Status: open     Level: limit
+- Status: answered     Level: limit
 - Blocks / shapes: AC24, AC25; the fixture task
 - Context: 2026-09-26. Q4: no API key is available. The spec's fixture has to be a
   real Anthropic streaming response, scrubbed by hand.
@@ -160,10 +161,11 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   extended to save the upstream response's status, headers and body. It forces
   `Accept-Encoding: identity` so the saved body is readable text, and it works in
   either auth mode. It is not the gateway, so the fixture cannot vouch for itself.
-- Outcome: —
+- 2026-09-26 (owner): Answered: agreed. Record the stream with the throwaway recording proxy driven by Claude Code, as the plan's working default has it.
+- Outcome: plan: no change (Golden fixture section already says so). Q4 still governs AC44.
 
 ## Q11 — What does the gateway answer when the client's own request body fails?
-- Status: open     Level: technical
+- Status: answered     Level: technical
 - Blocks / shapes: plan.md "Approach: error handler", AC27
 - Context: 2026-09-26. `ReverseProxy` calls `ErrorHandler` with one error type for
   every `RoundTrip` failure, and a failed read of the client's request body (the client
@@ -174,10 +176,11 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
 - Answer: open. Working default in the plan: the spec's literal rule, so anything that
   is not a timeout and not a cancelled context is a 502. When the client has already
   gone, the cancelled-context branch usually catches it first.
-- Outcome: —
+- 2026-09-26 (owner): Answered: a client that is gone gives `client_disconnected` and no body. A malformed or short request body gives `400` in the adapter's error envelope with `x-gateway-error: client_body`. It is never a 502.
+- Outcome: escalated → spec and plan, not yet applied: a new gateway-made error reason (`client_body`, 400) changes the spec's Errors list and needs an AC; plan.md's error handler must tell a request-body read failure from an upstream failure. spec.md is approved and was left untouched in this pass.
 
 ## Q12 — Should the access line say that the upstream aborted mid-stream?
-- Status: open     Level: limit
+- Status: answered     Level: limit
 - Blocks / shapes: plan.md "Approach: access log", AC31
 - Context: 2026-09-26. After headers, `ReverseProxy` can only abort (Q8). The line then
   has the upstream's `status` (for example 200) and a short `bytes`, with no field
@@ -186,10 +189,11 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
 - Question: is `status` plus `bytes` enough, or should the line gain a field?
 - Answer: open. Working default in the plan: add nothing, as the spec's list is
   closed.
-- Outcome: —
+- 2026-09-26 (owner): Answered: yes, the access line says so, with the field `upstream_aborted`.
+- Outcome: escalated → spec and plan, not yet applied: `upstream_aborted` is a new access-log field (spec's Access log list) and needs an AC; plan.md's access log and response hook sections must set it when `ReverseProxy` aborts after headers. spec.md left untouched in this pass.
 
 ## Q13 — Which status does the access line show when the client left before any response?
-- Status: open     Level: limit
+- Status: answered     Level: limit
 - Blocks / shapes: plan.md "Approach: error handler", AC30
 - Context: 2026-09-26. On a cancelled context the error handler writes no body (agreed,
   and the spec's `client_disconnected`). If it writes no status either, the chi wrapper
@@ -197,4 +201,5 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
 - Question: what `status` should the line carry?
 - Answer: open. Working default in the plan: `WriteHeader(499)` with no body. 499 is the
   usual "client closed request" convention and is never seen by anyone.
-- Outcome: —
+- 2026-09-26 (owner): Answered: `499`, header only, no body, as the plan's working default has it.
+- Outcome: plan: no change (already the working default).
