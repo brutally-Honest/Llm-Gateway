@@ -110,13 +110,14 @@ listed on each of them.
 
 ## Container
 
-- [ ] T11 — `Dockerfile` (builder `golang:1.25.4-trixie` with a comment pointing at
+- [x] T11 — `Dockerfile` (builder `golang:1.25.4-trixie` with a comment pointing at
   `go.mod`, `ARG VERSION=dev`, runtime `gcr.io/distroless/static-debian13:nonroot`, both
   with their digests from plan.md's Pinned versions table, in full), `.dockerignore`
   (`.git`, `bin/`, `config.yaml`, `.env*`), `docker-compose.yml` (gateway only,
   `127.0.0.1:7197:7197`, `GATEWAY_LISTEN_ADDR: 0.0.0.0:7197`,
   `args: { VERSION: ${VERSION:-dev} }`), and `Makefile` `image`. Done: `make image`
-  succeeds. The run check is T17. Commit: `build(deploy): add the docker image` (AC23)
+  succeeds, and `docker image inspect llm-gateway` shows `User` `nonroot`. The run
+  check is T17. Commit: `build(deploy): add the docker image` (AC23)
 
 ## Docs
 

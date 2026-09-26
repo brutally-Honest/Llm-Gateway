@@ -250,8 +250,8 @@ Routes: `GET /healthz` gives `200`, `Content-Type: application/json` and
 | `.githooks/pre-push` | New |
 | `Makefile` | `setup` (`setup-git`, `setup-lint`), `build`, `run`, `test`, `lint`, `verify`, `image` |
 | `.golangci.yml` | v2 format (`version: "2"`). forbidigo bans `os.Stdout`/`os.Stderr` except in `cmd/gateway/main.go` and `internal/logging/` |
-| `Dockerfile`, `.dockerignore` | Multi-stage static build. `.dockerignore` keeps out `.git`, `bin/`, `config.yaml` and `.env*` |
-| `docker-compose.yml` | Gateway service only |
+| `Dockerfile`, `.dockerignore` | Multi-stage static build. `.dockerignore` keeps out `.git`, `bin/`, `config.yaml` and `.env*` (at the root and, via `**/.env*`, in any directory) |
+| `docker-compose.yml` | Gateway service only, image named `llm-gateway` |
 | `config.example.yaml` | The three keys live (not commented out) at their defaults, each with a comment. `TestLoad_ExampleFileIsDefaults` needs real values to catch drift |
 | `.gitignore` | Adds `/config.yaml` (root only, so a future `testdata/config.yaml` is not ignored) |
 | `README.md` | Setup section points to `make setup` |
