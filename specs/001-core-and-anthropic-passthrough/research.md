@@ -259,3 +259,43 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   and every `Proxy-*`; `ModifyResponse` deletes every `Proxy-*` on the response. No
   spec change: the spec already lists these as hop-by-hop. A consequence: the gateway
   never switches protocols (no WebSocket through it), which no adapter needs.
+
+## Q17 — Does `net/http` invent a `Content-Type` for a response upstream sent without one?
+- Status: answered     Level: technical
+- Blocks / shapes: plan.md "Response hook"; AC18 (T9)
+- Context: 2026-09-26. Building T9 (go1.25.4). `TestProxy_ResponseVerbatim` has an
+  upstream that sends no `Content-Type`; AC18 wants the client to see none either.
+- Question: does the response reach the client without a `Content-Type`?
+- Answer: not reliably. When the first body write carries the headers out and the
+  header map has no `Content-Type` key, `net/http`'s response writer sniffs one
+  (`http.DetectContentType`, e.g. `text/html; charset=utf-8`). With `FlushInterval: -1`
+  `ReverseProxy`'s early header flush usually wins, but that is a race. An entry that
+  is present but empty (`Header()["Content-Type"] = nil`) stops the sniff outright,
+  and `ReverseProxy` adds upstream's value to that entry when there is one. Confirmed
+  by `TestProxy_ResponseVerbatim`, which failed (sniffed `text/html`) with the entry
+  removed and `FlushInterval: 0`.
+- Outcome: escalated → plan. "Response hook": `ServeHTTP` puts an empty
+  `Content-Type` entry on the writer when it has none. T10's error handler must use
+  `Set`, not `Add`, for its own `Content-Type`. No spec change.
+
+## Q18 — Where does AC26's literal `anthropic-ratelimit-*` proof live?
+- Status: open     Level: flow
+- Blocks / shapes: AC26 (T9); may add a test to T14 and a row to the traceability table
+- Context: 2026-09-26. AC26 names `TestProxy_UpstreamErrorsVerbatim` and says `429`,
+  `500` and `529` reach the client with body, `retry-after`, `x-should-retry` and
+  `anthropic-ratelimit-*` byte-identical. T9 wrote that test in `internal/core/`, where
+  AC34's `TestCore_NoProviderOrClientIdentifiers` walks every file, tests included, and
+  forbids `anthropic`. So the core test sends a neutral `X-Ratelimit-*` family instead.
+  That proves the mechanism (the proxy treats every header name alike) but no test in
+  the repo sends a header named `anthropic-ratelimit-*` on an error. T21's golden
+  replay does carry `Anthropic-Ratelimit-Unified-*` headers, but on a `200`, not on
+  `429` / `500` / `529`. The spec does not say which package AC26's test lives in.
+  Raised by review of T9 (`ca3f86a`).
+- Question: does AC26 need a test that sends the literal `anthropic-ratelimit-*` family
+  on `429` / `500` / `529`, and if so, which task owns it? Or does the neutral stand-in
+  in core count as full proof?
+- Answer: open. Working default (not applied): T14 adds a second
+  `TestProxy_UpstreamErrorsVerbatim` in `internal/protocols/anthropic/adapter_test.go`,
+  through the real adapter and `server.New`, sending `anthropic-ratelimit-*` headers on
+  each of the three statuses; the traceability row for AC26 becomes `T9, T14`. The
+  alternative is that the owner accepts the core stand-in as full proof of AC26.

@@ -176,7 +176,7 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   `TestAccessLog_ProxyFields` (`protocol`, `client`, `stream`, `ttfb_ms` for a streamed
   and a non-streamed request). Done: those pass under `-race`. Commit:
   `feat(proxy): stream responses back unchanged` (AC18, AC19, AC23, AC26, AC36)
-  (shaped: Q6, Q7)
+  (shaped: Q6, Q7, Q17) (blocked: Q18)
 - [ ] T10 — `internal/core/proxy.go`, gateway-made errors: an `ErrorHandler`
   (first match wins: a `net.Error` timeout is `504` `upstream_timeout`; the request-body
   watcher holds a read error is `400` `client_body`; anything else is `502`
