@@ -33,9 +33,11 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
 - Outcome: `cleanEnv` keeps stripping `MAKEFLAGS`, `MFLAGS` and `MAKELEVEL`, and
   plan.md's Testing strategy now lists them. The same leak reaches the real hook: see
   Q2.
+- 2026-09-26: `GNUMAKEFLAGS` is stripped too (GNU make reads it like `MAKEFLAGS`), and
+  plan.md's list includes it.
 
 ## Q2 — Should the pre-push hook clear an inherited `MAKEFLAGS` before `make verify`?
-- Status: open     Level: technical
+- Status: answered     Level: technical
 - Blocks / shapes: nothing yet (T2's ACs pass as planned)
 - Context: found during Q1. The hook runs `make verify` in whatever environment
   `git push` was started from. With a lint failure in the tree, 2026-09-26:
@@ -45,5 +47,9 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
 - Question: should the hook run `MAKEFLAGS= MFLAGS= make verify`, so the gate
   can't be relaxed from outside? That changes plan.md's hook description and needs a
   test (`TestPrePush_Rejects/verify_fails_makeflags`).
-- Answer: pending
-- Outcome: pending
+- Answer: yes, and `GNUMAKEFLAGS` and `GOFLAGS` with it: `GOFLAGS=-run=^$` makes
+  `go test` run nothing and exit 0. `TestPrePush_Rejects/verify_fails_despite_env_flags`
+  pushes with `MAKEFLAGS=i`, `GNUMAKEFLAGS=-i` and `GOFLAGS=-run=^$` over a failing
+  stub `verify`. Against a hook running plain `make verify` the push succeeds and the
+  case fails; with the four cleared it is rejected (2026-09-26).
+- Outcome: hook clears MAKEFLAGS, MFLAGS, GNUMAKEFLAGS, GOFLAGS; escalated to plan.

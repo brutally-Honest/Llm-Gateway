@@ -101,6 +101,17 @@ func TestPrePush_Rejects(t *testing.T) {
 			want: "make verify failed",
 		},
 		{
+			// cleanEnv strips these; they are set again here, as a pusher's shell
+			// might export them.
+			name: "verify_fails_despite_env_flags",
+			arrange: func(w *world) ([]string, []string) {
+				w.commit("feat(repo): add a change")
+				env := append([]string{"MAKEFLAGS=i", "GNUMAKEFLAGS=-i", "GOFLAGS=-run=^$"}, verifyFails...)
+				return env, []string{"origin", "main"}
+			},
+			want: "make verify failed",
+		},
+		{
 			name: "dirty_tree",
 			arrange: func(w *world) ([]string, []string) {
 				w.commit("feat(repo): add a change")

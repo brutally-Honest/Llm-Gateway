@@ -216,7 +216,10 @@ Routes: `GET /healthz` gives `200`, `Content-Type: application/json` and
   spec defines it), and run `.githooks/commit-msg` on each commit's
   `git log -1 --format=%B` in a `mktemp` file.
 - If at least one branch line remains: `git update-index -q --refresh`, then
-  `git diff-index --quiet HEAD --` for the clean-tree check, then `make verify` **once**.
+  `git diff-index --quiet HEAD --` for the clean-tree check, then `make verify` **once**,
+  run as `MAKEFLAGS= MFLAGS= GNUMAKEFLAGS= GOFLAGS= make verify`. Flags inherited
+  from the pusher's environment, like make's `-i` or go's `-run=^$`, would otherwise
+  make a failing verify exit 0 (research Q2).
 - It stops on the first failure with a plain message on stderr. That rule is for the
   gateway; git hooks talk to a human. It never writes to the tree.
 
@@ -256,9 +259,13 @@ Routes: `GET /healthz` gives `200`, `Content-Type: application/json` and
 
 **`.golangci.yml`**: the `standard` linter set (errcheck, govet, ineffassign,
 staticcheck, unused), plus `errorlint`, plus `forbidigo`. forbidigo bans
-`fmt.Print*`, `print`, `println`, `log.Print*|Fatal*|Panic*`, `zap.L`, `zap.S` and
-`zap.ReplaceGlobals` outside `_test.go` files. That turns "nothing writes plain text"
-and "no global logger" into lint failures. The `gofmt` formatter is enabled.
+`fmt.Print*`, `print`, `println`, `log.Print*|Fatal*|Panic*|Default|New*|SetOutput`,
+`os.Stdout`, `os.Stderr`, `zap.L`, `zap.S` and `zap.ReplaceGlobals` outside
+`_test.go` files. `cmd/gateway/main.go` and `internal/logging/` may use `os.Stdout`
+and `os.Stderr`: that exclusion is scoped by issue text to those two names, so every
+other ban, the zap globals included, still applies there. That turns "nothing writes
+plain text" and "no global logger" into lint failures. The `gofmt` formatter is
+enabled.
 
 **Dockerfile**: builder `golang:1.25.4-trixie` (with a comment pointing at `go.mod`),
 `ARG VERSION=dev`, `CGO_ENABLED=0`, and the same `-trimpath -ldflags` as `make build`.
@@ -350,7 +357,7 @@ the network.
 
 The child processes get a clean environment:
 - every inherited `GIT_*` variable is removed (an outer `git push` exports some);
-- `MAKEFLAGS`, `MFLAGS` and `MAKELEVEL` are removed, because an outer `make -i`
+- `MAKEFLAGS`, `MFLAGS`, `GNUMAKEFLAGS` and `MAKELEVEL` are removed, because an outer `make -i`
   would otherwise make the stub's failing `verify` pass (research Q1);
 - `GIT_CONFIG_GLOBAL=/dev/null`, `GIT_CONFIG_NOSYSTEM=1` and `HOME=<tmp>`, so the
   user's global config (hooks, signing, templates) can't leak in;

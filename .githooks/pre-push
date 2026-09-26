@@ -51,7 +51,10 @@ git update-index -q --refresh
 git diff-index --quiet HEAD -- ||
 	fail 'uncommitted changes to tracked files; commit or stash them before pushing'
 
-make -C "$root" --no-print-directory verify </dev/null ||
+# Flags inherited from the pusher's environment, like make's -i or go's -run=^$,
+# would make a failing verify exit 0, so the gate runs without them.
+MAKEFLAGS= MFLAGS= GNUMAKEFLAGS= GOFLAGS= \
+	make -C "$root" --no-print-directory verify </dev/null ||
 	fail 'make verify failed'
 
 exit 0

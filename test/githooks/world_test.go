@@ -50,7 +50,8 @@ func cleanEnv(home string) []string {
 	for _, kv := range os.Environ() {
 		name, _, _ := strings.Cut(kv, "=")
 		if strings.HasPrefix(name, "GIT_") || name == "HOME" ||
-			name == "MAKEFLAGS" || name == "MFLAGS" || name == "MAKELEVEL" {
+			name == "MAKEFLAGS" || name == "MFLAGS" || name == "GNUMAKEFLAGS" ||
+			name == "MAKELEVEL" {
 			continue
 		}
 		env = append(env, kv)
