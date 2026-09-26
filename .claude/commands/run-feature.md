@@ -1,6 +1,7 @@
 ---
 description: Run every remaining task of an approved feature, implement → review → fix, without stopping unless a stop rule fires.
 argument-hint: <feature folder, e.g. 000-foundation>
+allowed-tools: Bash(make verify) Bash(git status) Bash(git status *) Bash(git branch --show-current)
 ---
 
 Feature: `specs/$ARGUMENTS/`

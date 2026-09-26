@@ -34,3 +34,6 @@ data/
 
 # Claude Code local overrides (shared settings.json is committed)
 .claude/settings.local.json
+
+# /run-feature scratch: commit messages and notes the implementer passes with -F
+/tmp/
