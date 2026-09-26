@@ -137,7 +137,11 @@ func TestRun_EnvOverridesFile(t *testing.T) {
 
 	t.Run("shutdown_timeout", func(t *testing.T) {
 		inTempDir(t, &file)
-		g := startGateway(t, options{env: map[string]string{"GATEWAY_LOG_LEVEL": "info", "GATEWAY_SHUTDOWN_TIMEOUT": "100ms"}})
+		accepted := make(chan struct{}, 1)
+		g := startGateway(t, options{
+			env:      map[string]string{"GATEWAY_LOG_LEVEL": "info", "GATEWAY_SHUTDOWN_TIMEOUT": "100ms"},
+			accepted: accepted,
+		})
 		line := g.waitLine("gateway started")
 		wantOverrides(t, line, "log_level", "shutdown_timeout")
 
@@ -152,7 +156,12 @@ func TestRun_EnvOverridesFile(t *testing.T) {
 		if _, err := conn.Write([]byte("GET /healthz HTTP/1.1\r\n")); err != nil {
 			t.Fatal(err)
 		}
-		time.Sleep(50 * time.Millisecond) // let the server read the first bytes
+		// Cancel only once the server has the connection, so Shutdown sees it.
+		select {
+		case <-accepted:
+		case <-time.After(2 * time.Second):
+			t.Fatal("the server never accepted the connection")
+		}
 
 		start := time.Now()
 		if code := g.stop(); code != exitRuntime {

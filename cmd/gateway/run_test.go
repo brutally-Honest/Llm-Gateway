@@ -56,6 +56,22 @@ type options struct {
 	listenErr error
 	// mount adds test-only routes, under the same middleware as /healthz.
 	mount []func(chi.Router)
+	// accepted, if set, gets a signal each time the listener accepts a connection.
+	accepted chan struct{}
+}
+
+// signalListener signals accepted after each connection Accept returns.
+type signalListener struct {
+	net.Listener
+	accepted chan<- struct{}
+}
+
+func (l signalListener) Accept() (net.Conn, error) {
+	c, err := l.Listener.Accept()
+	if err == nil {
+		l.accepted <- struct{}{}
+	}
+	return c, err
 }
 
 func startGateway(t *testing.T, o options) *gateway {
@@ -77,10 +93,14 @@ func startGateway(t *testing.T, o options) *gateway {
 			if o.listenErr != nil {
 				return nil, o.listenErr
 			}
-			if o.realListen {
-				return net.Listen(network, addr)
+			if !o.realListen {
+				addr = "127.0.0.1:0"
 			}
-			return net.Listen(network, "127.0.0.1:0")
+			ln, err := net.Listen(network, addr)
+			if err != nil || o.accepted == nil {
+				return ln, err
+			}
+			return signalListener{Listener: ln, accepted: o.accepted}, nil
 		},
 	}
 	go func() { g.code <- run(ctx, d) }()
