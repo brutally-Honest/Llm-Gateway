@@ -99,7 +99,7 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
 
 ## Core, bottom-up
 
-- [ ] T6 — `internal/core` is created: `adapter.go` (`AuthKind` with `AuthNone`,
+- [x] T6 — `internal/core` is created: `adapter.go` (`AuthKind` with `AuthNone`,
   `AuthAPIKey`, `AuthBearer`; `ClientUnknown = "unknown"`; the `Adapter` interface
   `Name`, `Prefix`, `DefaultBaseURL`, `AuthKind(http.Header)`, `ErrorBody(reason)`; the
   `Profile` interface `Name`, `Match`), and `meta.go` (`Meta` with `Protocol`, `Client`,
