@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -162,5 +163,59 @@ func TestLoad_ExampleFileHasUpstreamDefaults(t *testing.T) {
 	}
 	if _, ok := got.Upstreams["anthropic"]; !ok {
 		t.Errorf("example file loaded no anthropic upstream")
+	}
+}
+
+// AC3: a base_url that is not a plain https (or loopback http) origin is rejected with
+// the fixed reason, naming the key and source, never the value.
+func TestLoad_InvalidUpstreamURL(t *testing.T) {
+	const sentinel = "s3ntinel-v4lue"
+	const key = "upstreams.anthropic.base_url"
+	const envName = "GATEWAY_UPSTREAMS_ANTHROPIC_BASE_URL"
+	values := map[string][]string{
+		"relative":       {"/" + sentinel, sentinel, "//" + sentinel},
+		"empty host":     {"https://", "https:///" + sentinel},
+		"userinfo":       {"https://" + sentinel + "@host.example"},
+		"query":          {"https://host.example/" + sentinel + "?a=b", "https://host.example?"},
+		"fragment":       {"https://host.example/" + sentinel + "#f", "https://host.example#"},
+		"scheme":         {"ftp://" + sentinel + ".example", "ws://" + sentinel + ".example"},
+		"http non-local": {"http://" + sentinel + ".example", "http://10.0.0.1:8080", "http://localhost.example"},
+	}
+	for name, vs := range values {
+		for _, v := range vs {
+			t.Run(name, func(t *testing.T) {
+				path := writeFile(t, "upstreams:\n  anthropic:\n    base_url: \""+v+"\"\n")
+				want := config.Error{Key: key, Source: path, Reason: "invalid url", Line: 3}
+				e := loadError(t, config.Options{Path: path})
+				if *e != want {
+					t.Errorf("file %q: error = %+v, want %+v", v, *e, want)
+				}
+				want = config.Error{Key: key, Source: envName, Reason: "invalid url"}
+				e = loadError(t, config.Options{LookupEnv: envOf(envName, v)})
+				if *e != want {
+					t.Errorf("env %q: error = %+v, want %+v", v, *e, want)
+				}
+				if s := e.Error() + e.Key + e.Source + e.Reason; strings.Contains(s, sentinel) {
+					t.Errorf("error contains the value: %q", s)
+				}
+			})
+		}
+	}
+}
+
+// AC4: https anywhere, and http only to a loopback host, are accepted.
+func TestLoad_UpstreamURLAccepted(t *testing.T) {
+	for _, v := range []string{
+		"https://api.anthropic.com", "https://host/api",
+		"http://127.0.0.1:8080", "http://localhost:8080", "http://[::1]:8080",
+	} {
+		cfg, _, err := config.Load(config.Options{Upstreams: specs, LookupEnv: envOf("GATEWAY_UPSTREAMS_ANTHROPIC_BASE_URL", v)})
+		if err != nil {
+			t.Errorf("%q: %v", v, err)
+			continue
+		}
+		if got := cfg.Upstreams["anthropic"].BaseURL.String(); got != v {
+			t.Errorf("BaseURL = %q, want %q", got, v)
+		}
 	}
 }

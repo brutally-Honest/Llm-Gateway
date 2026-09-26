@@ -52,7 +52,7 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   `upstreams`). Done: those four, plus `TestLoad_ExampleFileIsDefaults` (with the new
   block) and `TestLoad_ErrorsNeverContainValue`, pass. Commit:
   `feat(config): add nested upstream settings` (AC1, AC2, AC5, AC6, AC7)
-- [ ] T2 — `internal/config`: `base_url` validation in `upstream.go`, one function whose
+- [x] T2 — `internal/config`: `base_url` validation in `upstream.go`, one function whose
   only failure reason is the new fixed `invalid url` (the message never holds the
   value). Reject: a string containing `?` or `#` (an empty query or fragment that
   `url.Parse` swallows), a parse failure, a non-absolute URL, an empty host, userinfo.

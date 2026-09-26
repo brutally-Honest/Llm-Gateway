@@ -1,7 +1,9 @@
 package config
 
 import (
+	"net"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -55,6 +57,36 @@ func defaultUpstream(spec UpstreamSpec) (Upstream, bool) {
 	}, true
 }
 
+// parseBaseURL parses and validates an upstream base URL. It returns false for
+// anything that is not an absolute https URL (or http to a loopback host) with a host,
+// no userinfo, no query and no fragment.
+func parseBaseURL(v string) (*url.URL, bool) {
+	// An empty query or fragment is swallowed by url.Parse, so look at the string.
+	if strings.ContainsAny(v, "?#") {
+		return nil, false
+	}
+	u, err := url.Parse(v)
+	if err != nil || !u.IsAbs() || u.Hostname() == "" || u.User != nil {
+		return nil, false
+	}
+	switch u.Scheme {
+	case "https":
+	case "http":
+		host := u.Hostname()
+		if host != "localhost" && !isLoopbackIP(host) {
+			return nil, false
+		}
+	default:
+		return nil, false
+	}
+	return u, true
+}
+
+func isLoopbackIP(host string) bool {
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 // upstreamSettings is one setting per field of the named upstream.
 func upstreamSettings(name string) []setting {
 	duration := func(field string, set func(*Upstream, time.Duration)) setting {
@@ -71,8 +103,8 @@ func upstreamSettings(name string) []setting {
 	}
 	return []setting{
 		{upstreamKey(name, fieldBaseURL), func(c *Config, v string) string {
-			u, err := url.Parse(v)
-			if err != nil {
+			u, ok := parseBaseURL(v)
+			if !ok {
 				return reasonInvalidURL
 			}
 			up := c.Upstreams[name]

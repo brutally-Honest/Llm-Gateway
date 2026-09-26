@@ -183,10 +183,12 @@ func TestLoad_ErrorsNeverContainValue(t *testing.T) {
 		{name: "invalid_level_env", env: []string{"GATEWAY_LOG_LEVEL", sentinel}, reason: reasonInvalidLevel},
 		{name: "invalid_address_file", file: "listen_addr: " + sentinel + "\n", reason: reasonInvalidAddress},
 		{name: "invalid_address_env", env: []string{"GATEWAY_LISTEN_ADDR", sentinel}, reason: reasonInvalidAddress},
+		{name: "invalid_url_file", file: "upstreams:\n  anthropic:\n    base_url: ftp://" + sentinel + "\n", reason: reasonInvalidURL},
+		{name: "invalid_url_env", env: []string{"GATEWAY_UPSTREAMS_ANTHROPIC_BASE_URL", "http://" + sentinel}, reason: reasonInvalidURL},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts := Options{Path: tc.path, LookupEnv: env(tc.env...)}
+			opts := Options{Path: tc.path, LookupEnv: env(tc.env...), Upstreams: []UpstreamSpec{{Name: "anthropic", DefaultBaseURL: "https://api.anthropic.com"}}}
 			if tc.file != "" {
 				opts.Path = writeConfig(t, tc.file)
 			}
