@@ -1,0 +1,4 @@
+Spec: specs/001-core-and-anthropic-passthrough (AC3, AC4)
+Why this approach: a string check for ? and # runs before url.Parse because Parse swallows an empty query or fragment; loopback is localhost or net.ParseIP(host).IsLoopback().
+Trade-off / known limit: TestLoad_ErrorsNeverContainValue now passes an anthropic spec for every row so the url rows can name the key; other rows are unaffected.
+Verified by: make verify; TestLoad_InvalidUpstreamURL failed first (bad URLs were accepted).
