@@ -1,0 +1,6 @@
+Spec: specs/001-core-and-anthropic-passthrough/spec.md (AC11, Out of scope)
+Research: Q20, answered 2026-09-26 with option (a)
+Why this approach: chi v5.3.2 checks r.Method against its method map before routing, so a non-standard method never reaches a prefix handler; no client in 001 sends one.
+Alternatives rejected: (b) router-wide 405 handler set from one Mount; (c) prefix dispatch before chi, which touches server; (d) chi.RegisterMethod, a global method allowlist.
+Trade-off / known limit: non-standard methods get 405 inside and outside a prefix; revisit with (c) if a real client needs one.
+Verified by: make verify
