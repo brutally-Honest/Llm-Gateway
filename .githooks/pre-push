@@ -1,0 +1,57 @@
+#!/bin/sh
+# The local gate (ADR 0001). A branch push is blocked unless every pushed commit
+# passes .githooks/commit-msg, each pushed sha is HEAD, the tree is clean and
+# `make verify` passes. Notes, tags and deletions are not checked.
+# Enabled with: make setup
+
+root=$(git rev-parse --show-toplevel) || exit 1
+head=$(git rev-parse HEAD) || exit 1
+
+fail() {
+	printf '\npre-push: %s\n\n' "$1" >&2
+	exit 1
+}
+
+msg=$(mktemp) || exit 1
+trap 'rm -f "$msg"' EXIT
+
+branches=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+	case "$remote_ref" in
+		refs/heads/*) ;;
+		*) continue ;;
+	esac
+	# An all-zero local sha is a deletion.
+	case "$local_sha" in
+		*[!0]*) ;;
+		*) continue ;;
+	esac
+	branches=1
+
+	[ "$local_sha" = "$head" ] ||
+		fail "$local_ref is not HEAD; check it out before pushing it, so make verify checks what is pushed"
+
+	# An all-zero remote sha is a new branch.
+	case "$remote_sha" in
+		*[!0]*) range=$(git rev-list "$remote_sha..$local_sha" </dev/null) ;;
+		*) range=$(git rev-list "$local_sha" --not --remotes=origin </dev/null) ;;
+	esac || fail "cannot list the commits pushed to $remote_ref; fetch and try again"
+
+	for commit in $range; do
+		git log -1 --format=%B "$commit" >"$msg" </dev/null ||
+			fail "cannot read the message of $commit"
+		"$root/.githooks/commit-msg" "$msg" </dev/null ||
+			fail "commit $commit has a malformed message; reword it before pushing"
+	done
+done
+
+[ "$branches" = 1 ] || exit 0
+
+git update-index -q --refresh
+git diff-index --quiet HEAD -- ||
+	fail 'uncommitted changes to tracked files; commit or stash them before pushing'
+
+make -C "$root" --no-print-directory verify </dev/null ||
+	fail 'make verify failed'
+
+exit 0

@@ -33,13 +33,14 @@ listed on each of them.
   module's first package, and `go test` and golangci-lint both need at least one to
   exit `0`. Done: `make setup && make verify` passes, and `TestSetupGit_Idempotent`
   passes. Commit: `chore(repo): add the make verify gate` (AC22)
-- [ ] T2 — `.githooks/pre-push` (remote-ref branch filter, `HEAD` check, range per the
+- [x] T2 — `.githooks/pre-push` (remote-ref branch filter, `HEAD` check, range per the
   spec, `commit-msg` per commit, clean-tree check, then `make verify` once), and
   `test/githooks/prepush_test.go` (temp repo, bare `origin`, copied hooks, stub
   Makefile, clean `GIT_*` environment). From here on, every push goes through the real
   gate. Done: `TestPrePush_Rejects/{malformed_subject,verify_fails,dirty_tree,sha_not_head}`
   and `TestPrePush_Allows/{branch_deletion,clean_range,notes,tag}` pass under
   `make verify`. Commit: `chore(repo): add the pre-push hook` (AC20, AC21)
+  (shaped: Q1)
 
 ## Gateway, bottom-up
 

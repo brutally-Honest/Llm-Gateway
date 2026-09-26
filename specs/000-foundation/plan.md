@@ -350,6 +350,8 @@ the network.
 
 The child processes get a clean environment:
 - every inherited `GIT_*` variable is removed (an outer `git push` exports some);
+- `MAKEFLAGS`, `MFLAGS` and `MAKELEVEL` are removed, because an outer `make -i`
+  would otherwise make the stub's failing `verify` pass (research Q1);
 - `GIT_CONFIG_GLOBAL=/dev/null`, `GIT_CONFIG_NOSYSTEM=1` and `HOME=<tmp>`, so the
   user's global config (hooks, signing, templates) can't leak in;
 - `user.name` and `user.email` are set locally.
