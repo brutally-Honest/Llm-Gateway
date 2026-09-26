@@ -1,0 +1,3 @@
+Spec: specs/000-foundation/spec.md (Config: fail fast; Do: loopback by default)
+Why this approach: the default is loopback because the gateway has no auth yet; an empty host silently widens that to every interface, so it has to be spelled out.
+Verified by: GOFLAGS=-count=1 make verify; TestLoad_InvalidAddress rejects ":7197" from file and env, and loads "0.0.0.0:7197" and "[::1]:7197". Out-of-range port cases now carry a host, so they still reach the port check.
