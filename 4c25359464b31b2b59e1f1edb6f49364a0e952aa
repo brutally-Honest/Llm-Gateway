@@ -1,0 +1,5 @@
+Spec: specs/001-core-and-anthropic-passthrough/spec.md (Don't "no bare go"; no AC)
+Why this approach: a go/parser AST walk finds *ast.GoStmt exactly, with no dependency and no lint change; the walk skips what `go test ./...` skips (dot and underscore dirs, testdata, nested modules), so .claude worktrees and fixtures are not scanned.
+Alternatives rejected: a forbidigo rule (it matches identifiers, not the go keyword); grepping source text (matches comments and strings).
+Trade-off / known limit: a file that fails to parse fails the test rather than being skipped; build tags are ignored, so every .go file is checked whatever its constraints.
+Verified by: TestNoBareGoStatements first failed with "internal/server/throwaway_bare_go.go:4: bare go statement; start goroutines with logging.Go" against a throwaway file holding `go func() {}()`, which was then deleted, and passes on the tree; TestBareGoScanner_FlagsSeededFile proves the scanner on a seeded temp module (flags two files with lines, ignores the helper, _test.go files, testdata, dot/underscore dirs and a nested module); make verify under -race.
