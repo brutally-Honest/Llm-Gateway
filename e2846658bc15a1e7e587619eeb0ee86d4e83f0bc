@@ -1,0 +1,3 @@
+Why this approach: the T3 review could not run its revert check because the hook allowed only git reads and make verify; go test is the narrowest command that makes that check possible.
+Trade-off / known limit: go test still runs arbitrary test code, and the deny list matches -o followed by a space only, so -o=path and -exec/-toolexec are not yet blocked.
+Verified by: agent-bash-guard.sh run against sample allowed, file-writing, chained and unknown commands for the reviewer, plus implementer commands to confirm they are unaffected.
