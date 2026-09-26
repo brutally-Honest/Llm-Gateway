@@ -1,0 +1,4 @@
+Spec: specs/000-foundation/spec.md (Container; AC23 groundwork); plan.md Pinned versions
+Why this approach: both images pinned by tag and full digest from plan.md; go.mod and go.sum are copied before the source so dependency downloads cache; USER nonroot and ENTRYPOINT ["/gateway"] on distroless static.
+Trade-off / known limit: .dockerignore adds **/.env* beyond the plan's list, so an env file in a subdirectory stays out of the build context too. Compose names the image llm-gateway (the plan did not name it).
+Verified by: make image succeeded; docker image inspect llm-gateway shows User=nonroot, Entrypoint=[/gateway]; the binary copied out of a created (never started) container contains the version string 601a452-dirty, so VERSION reached the build. compose up not run (T17).
