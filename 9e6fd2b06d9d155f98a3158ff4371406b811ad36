@@ -1,0 +1,4 @@
+Spec: specs/000-foundation/spec.md (Logging; AC13 groundwork); research Q6
+Why this approach: one zapcore.NewCore with an explicit encoder config, no AddStacktrace and an empty StacktraceKey, so the only stack is the recover middleware's field. zap's ErrorOutput is a WriteSyncer that wraps each plain-text line as {"level":"error","msg":"logger error","detail":...}.
+Trade-off / known limit: an unknown level falls back to info instead of panicking (Q6). ErrorOutput binds os.Stderr when New runs.
+Verified by: GOFLAGS=-count=1 make verify; TestNew_JSONShape, TestErrorOutput_JSON, plus TestNew_Level, TestBootstrap_Info, TestStdLog. zap-globals lint: a throwaway file with zap.L(), zap.S(), zap.ReplaceGlobals and os.Stderr gave 3 findings in internal/logging (os.Stderr exempt) and 4 in internal/throwaway; deleted.
