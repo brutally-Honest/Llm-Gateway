@@ -121,7 +121,7 @@ listed on each of them.
 
 ## Docs
 
-- [ ] T12 — `README.md`: the Setup section points to `make setup` instead of listing the
+- [x] T12 — `README.md`: the Setup section points to `make setup` instead of listing the
   git config commands. Done: `grep -n 'make setup' README.md` shows it under Setup,
   and the section lists no `git config` lines. Commit:
   `docs(repo): point the readme setup at make setup`
