@@ -90,7 +90,7 @@ listed on each of them.
   Commit:
   `feat(server): fail fast on invalid config in run` (AC6, AC7, AC8, AC9, AC10, AC11,
   AC12) (shaped: Q7)
-- [ ] T8 — Logging, secrets and panics through `run`: `deps.mount` wired into
+- [x] T8 — Logging, secrets and panics through `run`: `deps.mount` wired into
   `server.New`. Done:
   `TestRun_AllLinesJSON`, `TestRun_SecretsNotLogged` and `TestRun_PanicRecovered`
   (stderr piped and empty) pass. Commit:

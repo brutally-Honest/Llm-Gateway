@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 )
 
 // syncBuffer is a goroutine-safe stdout.
@@ -52,6 +54,8 @@ type options struct {
 	realListen bool
 	// listenErr, if set, is what listen returns instead of binding.
 	listenErr error
+	// mount adds test-only routes, under the same middleware as /healthz.
+	mount []func(chi.Router)
 }
 
 func startGateway(t *testing.T, o options) *gateway {
@@ -65,6 +69,7 @@ func startGateway(t *testing.T, o options) *gateway {
 			return v, ok
 		},
 		stdout: g.stdout,
+		mount:  o.mount,
 		listen: func(network, addr string) (net.Listener, error) {
 			g.mu.Lock()
 			g.listen = append(g.listen, addr)

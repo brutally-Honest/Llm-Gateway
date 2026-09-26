@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"syscall"
 
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
 	"github.com/brutally-honest/llm-gateway/internal/config"
@@ -25,6 +26,7 @@ type deps struct {
 	lookupEnv func(string) (string, bool)
 	stdout    io.Writer
 	listen    func(network, addr string) (net.Listener, error)
+	mount     []func(chi.Router) // test-only routes; nil in main
 }
 
 // Exit codes.
@@ -91,7 +93,7 @@ func run(ctx context.Context, d deps) int {
 		return exitRuntime
 	}
 
-	srv := server.New(log)
+	srv := server.New(log, d.mount...)
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
 
