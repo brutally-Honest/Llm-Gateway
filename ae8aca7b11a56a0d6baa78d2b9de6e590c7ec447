@@ -1,0 +1,7 @@
+Spec: specs/001-core-and-anthropic-passthrough/spec.md (AC1-AC46)
+ADR: docs/decisions/0003-reverseproxy-with-rewrite-as-proxy-engine.md
+Research: specs/001-core-and-anthropic-passthrough/research.md (Q5-Q13)
+Why this approach: ReverseProxy+Rewrite; hooks checked against go1.25.4 source and a throwaway run. Rewrite strips client X-Forwarded-*/cleans the query/re-adds Te (put back or dropped); ReverseProxy appends X-Request-Id (upstream's deleted); accessLog must log from a defer or aborted streams go unlogged.
+Alternatives rejected: Director; SetXForwarded; hand-rolled proxy.
+Trade-off / known limit: Q9-Q13 open, plan carries working defaults; Q10 (fixture recording without an API key) blocks AC24/AC25.
+Verified by: docs only; stdlib source read and scratch programs.
