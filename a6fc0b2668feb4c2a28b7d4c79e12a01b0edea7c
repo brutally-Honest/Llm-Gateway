@@ -1,0 +1,5 @@
+Spec: specs/001-core-and-anthropic-passthrough/spec.md (AC37)
+Why this approach: presence only, never the value, so reporting both headers as 'both' keeps the rule and loses no information; any Authorization scheme still counts as bearer.
+Alternatives rejected: x-api-key wins (the old working default), which hides that a bearer token was also sent.
+Known limit: only the spec's auth-values line was edited, per the owner; AC37's line and plan.md's AuthKind constants (none/api_key/bearer, already in internal/core from T6) do not yet name 'both'.
+Changes: research.md Q15 answered (dated line); spec.md auth values; tasks.md T14 test case and (shaped: Q15).
