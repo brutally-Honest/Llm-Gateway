@@ -103,3 +103,18 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   `config.yaml` that is present would run the gateway on settings nobody chose.
 - Outcome: `readFile` returns `cannot read file`; `TestLoad_ErrorsNeverContainValue`
   covers it with a directory as the path. plan.md step 1 lists the reason.
+
+## Q6 — What does `logging.New` do with a level it doesn't know?
+- Status: answered     Level: technical
+- Blocks / shapes: T4 (shaped)
+- Context: plan.md gives `New(w io.Writer, level string) *zap.Logger`, with no error
+  return. `zapcore.ParseLevel` also accepts `dpanic`, `panic` and `fatal`, which
+  config rejects. zap v1.28.0, 2026-09-26.
+- Question: an unknown level can only come from a caller bug, since config validates
+  it first. Panic, or fall back?
+- Answer: fall back to `info`. A panic here would print a plain-text trace to stderr,
+  which breaks "nothing writes plain text" at the point where the logger that would
+  report it doesn't exist yet. `TestNew_Level` pins the fallback. zap's error output
+  is bound to `os.Stderr` when `New` runs, so a test that swaps `os.Stderr` (AC17)
+  must do so before building the logger.
+- Outcome: none beyond the code comment on `New`; the signature stays as planned.

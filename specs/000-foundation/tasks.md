@@ -54,11 +54,14 @@ listed on each of them.
   `TestLoad_ExampleFileIsDefaults`, `TestLoad_InvalidDuration` and
   `TestLoad_InvalidAddress` pass. Commit: `feat(config): add the config loader`
   (AC5, AC8, AC11) (shaped: Q3, Q4, Q5)
-- [ ] T4 — `internal/logging`: `New`, `Bootstrap`, `StdLog`, and the JSON
+- [x] T4 — `internal/logging`: `New`, `Bootstrap`, `StdLog`, and the JSON
   `ErrorOutput` writer; adds `go.uber.org/zap v1.28.0` to `go.mod`. Done:
   `TestNew_JSONShape` and `TestErrorOutput_JSON` pass, and `make verify` passes,
-  including `forbidigo` over the new code. Commit:
-  `feat(logging): add the zap logger constructors`
+  including `forbidigo` over the new code. The zap-globals ban, carried over from T1
+  because zap wasn't a dependency yet: a throwaway file calling `zap.L()`, `zap.S()`
+  and `zap.ReplaceGlobals` gives 3 forbidigo findings in `internal/logging/` and 3 on
+  any other path (deleted afterwards). Commit:
+  `feat(logging): add the zap logger constructors` (shaped: Q6)
 - [ ] T5 — `internal/server`: `Server` (`New`, `Serve`, `Shutdown`, `Close`,
   `InFlight`, `ReadHeaderTimeout: 10s`), the `inflight`, `requestID`, `accessLog` and
   `recoverer` middleware, `RequestID(ctx)`, and `GET /healthz`; `server.New` builds the
