@@ -6,7 +6,10 @@ BIN           := $(CURDIR)/bin
 GOLANGCI_LINT := $(BIN)/golangci-lint
 NOTES_REFSPEC := +refs/notes/*:refs/notes/*
 
-.PHONY: setup setup-git setup-lint test lint verify
+# `dev` when git can't describe the tree, e.g. a Docker build without .git.
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+
+.PHONY: setup setup-git setup-lint build run test lint verify
 
 # Idempotent: safe to run again at any time.
 setup: setup-git setup-lint
@@ -28,6 +31,12 @@ setup-lint:
 		$(GOLANGCI_LINT) version 2>/dev/null | grep -q 'has version $(GOLANGCI_LINT_VERSION) ' || \
 			{ echo 'golangci-lint install failed' >&2; exit 1; }; \
 	fi
+
+build:
+	CGO_ENABLED=0 go build -trimpath -ldflags "-X main.version=$(VERSION)" -o $(BIN)/gateway ./cmd/gateway
+
+run: build
+	$(BIN)/gateway
 
 test:
 	go test -race ./...

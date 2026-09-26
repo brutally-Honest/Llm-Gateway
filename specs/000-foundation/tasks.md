@@ -70,7 +70,7 @@ listed on each of them.
   `TestHealthz`, `TestRequestID` and `TestRecoverer_HeadersAlreadyWritten` pass.
   Commit:
   `feat(server): add the http server with healthz` (AC2, AC17, AC18)
-- [ ] T6 — `cmd/gateway` happy path: `main.go` (signal context,
+- [x] T6 — `cmd/gateway` happy path: `main.go` (signal context,
   `context.AfterFunc(ctx, stop)`, `os.Exit(run(...))`) and `run.go` (`deps`, `version`,
   flags, config, logger, `deps.listen`, `Serve`, the startup line with `version`,
   `addr`, `config_source` and `env_overrides`; on `ctx` cancel, `Shutdown` and
@@ -78,7 +78,7 @@ listed on each of them.
   lands here, not in T1, because it builds `./cmd/gateway` and would fail before this
   task. Done: `TestRun_StartupLine`, `TestRun_DefaultsWhenNoConfig` and
   `TestRun_DefaultListenAddr` pass, and `make build` succeeds. Commit:
-  `feat(server): add the gateway entry point` (AC3, AC4, AC5)
+  `feat(server): add the gateway entry point` (AC3, AC4, AC5) (shaped: Q7)
 - [ ] T7 — Config and env paths through `run`: flag errors and `*config.Error` logged
   as one JSON line with exit `2` before `listen`; bind errors (`address in use`,
   `bind failed`) with exit `1`. Done: `TestRun_EnvOverridesFile`, `TestRun_LogLevel`,

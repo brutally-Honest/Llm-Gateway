@@ -118,3 +118,22 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   is bound to `os.Stderr` when `New` runs, so a test that swaps `os.Stderr` (AC17)
   must do so before building the logger.
 - Outcome: none beyond the code comment on `New`; the signature stays as planned.
+
+## Q7 — How much error handling does T6's `run` carry, given T7–T9 own the error paths?
+- Status: answered     Level: flow
+- Blocks / shapes: T6 (shaped), T7, T8, T9
+- Context: T6 is the happy path, and T7 (config and bind errors), T8 (mounts) and T9
+  (shutdown timeout) each have their own `feat` commit. But `run` must handle every
+  error it gets in T6: errcheck fails lint on an ignored one, and carrying on after a
+  failed bind or a failed `Shutdown` would be wrong. 2026-09-26.
+- Question: what goes in T6, and what is left for T7–T9?
+- Answer: T6 handles each error with the smallest correct branch: one JSON line and the
+  exit code from plan.md's table (`invalid flags` and `invalid config` with the
+  `*config.Error` fields → `2`; `cannot bind` with the key, `serve failed` and
+  `shutdown failed` → `1`). Left for later: T7 splits `cannot bind` into
+  `address in use` / `bind failed` and adds the config-path tests; T8 adds
+  `deps.mount`; T9 turns `shutdown failed` into `shutdown timed out` with
+  `in_flight`, then `srv.Close()`. `gateway -h` currently exits `2` with
+  `invalid flags` (`flag.ErrHelp` is a flag error); T7's flag handling is where that
+  is decided.
+- Outcome: no plan change; each later task's Done list still proves its branch.
