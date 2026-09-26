@@ -41,6 +41,13 @@ hop-by-hop headers (including those named in `Connection`) before `Rewrite`, and
 gateway's request ID lives only on the response writer, so it never reaches upstream
 (AC16). The gateway does not clean `..` segments: a path is forwarded as sent.
 
+One more step, after the five above, exists only to classify errors (AC47): when
+`pr.Out.Body` is non-nil it is wrapped in a read-through watcher. The watcher passes
+every `Read` and `Close` straight to the client's body, changes no byte, adds no
+buffering and keeps `ContentLength`; it only remembers the first non-`io.EOF` read
+error, in an `atomic.Pointer` because the transport reads it on its own goroutine. The
+error value is kept for classification and never logged.
+
 ### Transport (AC21, AC22, AC27, AC28)
 One `*http.Transport` per upstream, built explicitly rather than cloned from
 `http.DefaultTransport` (which a test in the same process could have replaced):
@@ -55,7 +62,7 @@ One `*http.Transport` per upstream, built explicitly rather than cloned from
 - `MaxIdleConns: 100`, `MaxIdleConnsPerHost: 32`, `IdleConnTimeout: 90s`,
   `ExpectContinueTimeout: 1s`. The stdlib default of 2 idle connections per host would
   make parallel sub-agents re-handshake TLS constantly.
-- `Proxy`: `http.ProxyFromEnvironment`, pending research Q9.
+- `Proxy`: `http.ProxyFromEnvironment` (research Q9: the standard proxy env vars are honoured).
 
 ### Flushing (AC23)
 `FlushInterval: -1` flushes after every write. It goes through
@@ -73,27 +80,37 @@ middleware wraps the writer without `Unwrap`, the test fails.
    touched (AC19).
 2. Record `Meta.Stream` (`Content-Type` is `text/event-stream`, a generic media type)
    and `Meta.TTFB` (time since the proxy handler started, read from the `Meta`).
+3. Wrap `res.Body` in the same kind of read-through watcher as the request side, to
+   remember the first non-`io.EOF` read error, so an upstream failure after headers can
+   be told from a client that left (AC48, Q12). It runs on the handler's goroutine,
+   because `ReverseProxy` reads the body there, so it needs no atomic.
 
-Nothing else is changed: no `Content-Length`, no `Content-Encoding`, no body wrapper.
+Nothing else is changed: no `Content-Length`, no `Content-Encoding`, and the body
+bytes and their timing pass through the watcher untouched.
 
 ### Error handler (AC27–AC31)
 `ErrorHandler(w, r, err)`, first match wins:
 1. `r.Context().Err() != nil`: the client left. Set `Meta.ClientDisconnected`, write
-   the header only, no body (status pending Q13; working default 499). No
-   `x-gateway-error`, no `gateway_error`: the gateway did not create an error.
-2. `errors.As(err, &net.Error)` with `Timeout()`: `504`, reason `upstream_timeout`. The
+   the header only with status `499`, no body (Q13). No `x-gateway-error`, no
+   `gateway_error`: the gateway did not create an error (AC30).
+2. The request-body watcher holds a read error: the client's own body is malformed or
+   ended short. `400`, reason `client_body`, never a 502 (Q11, AC47). The context is
+   still live here, for example a client that half-closes after too few bytes or sends
+   broken chunked framing; a client that simply vanished was caught by step 1.
+3. `errors.As(err, &net.Error)` with `Timeout()`: `504`, reason `upstream_timeout`. The
    dial, TLS-handshake and response-header timeouts are all `net.Error` timeouts (AC28).
-3. Anything else: `502`, reason `upstream_unreachable` (AC27; Q11 for the one case this
-   over-blames).
+4. Anything else: `502`, reason `upstream_unreachable` (AC27).
 
-The 502 and 504 get `Content-Type` and body from `adapter.ErrorBody(reason)` and an
-`x-gateway-error: <reason>` header, and set `Meta.GatewayError`. The handler logs
+The 400, 502 and 504 get `Content-Type` and body from `adapter.ErrorBody(reason)` and
+an `x-gateway-error: <reason>` header, and set `Meta.GatewayError`. The handler logs
 nothing and never formats `err`: it can carry the upstream address. The gateway's
 `X-Request-Id` is already on the writer.
 
 `ReverseProxy` calls the handler only before headers are written. After them it can
 only abort: it panics `http.ErrAbortHandler`, which `recoverer` re-panics and
-`net/http` turns into a dropped connection (AC31; nothing invented, Q8). `ErrorLog` is
+`net/http` turns into a dropped connection (AC31; nothing invented, Q8). Whether that
+abort was upstream's fault or the client's is decided afterwards, from the response
+watcher (see the next section). `ErrorLog` is
 `logging.StdLog(log)` so the one line `ReverseProxy` writes on that path is JSON, not
 plain text. Nothing retries: the handler never re-issues, and the one retry left in the
 stack is `http.Transport`'s replay of a request it could not write on a stale idle
@@ -104,7 +121,9 @@ connection, which upstream never sees (see Risks).
 (`core.WithMeta`) before the handler chain, and after the handler reads it.
 `core.Proxy.ServeHTTP` fills `Protocol`, `Client` and `Auth` before handing to
 `ReverseProxy`. The hooks run on the handler's goroutine, so `Meta` needs no lock: it
-is written before `next.ServeHTTP` returns and read after (`-race` checks this).
+is written before `next.ServeHTTP` returns and read after (`-race` checks this). The one
+field written from another goroutine, the request-body error, lives in the watcher's
+atomic and is read by the error handler only.
 
 `accessLog` changes in two ways:
 - It adds the proxy fields only when `Meta.Protocol != ""`, so `/healthz` and 404 lines
@@ -112,8 +131,17 @@ is written before `next.ServeHTTP` returns and read after (`-race` checks this).
   when set.
 - It logs from a `defer`. Today it logs after `next.ServeHTTP`, so a handler that ends
   by `http.ErrAbortHandler` (a mid-stream failure, a client that left) writes no line
-  at all (Q8). In the `defer` it also sets `ClientDisconnected` when
-  `r.Context().Err() != nil`. No field is added for an upstream abort (Q12).
+  at all (Q8). In the `defer` it calls `Meta.Settle(ctx)`, which decides the two abort
+  flags once the handler is done:
+  - the response watcher holds a read error and `r.Context().Err() == nil`: upstream
+    failed after headers, so `UpstreamAborted` (Q12, AC48);
+  - otherwise, `r.Context().Err() != nil`: `ClientDisconnected` (AC30).
+
+  `upstream_aborted` and `client_disconnected` are logged only when true, like
+  `gateway_error`. `Settle` is used instead of a `recover` in the proxy so a real panic
+  keeps its original stack for `recoverer`. When the client leaves, the outbound read
+  error is `context.Canceled` and the inbound context is cancelled too, which is why
+  the check reads the inbound one.
 
 `internal/server` imports `internal/core` for `Meta`. `internal/core` never imports
 `internal/server`.
@@ -216,7 +244,7 @@ stream is one. The change is the default, `shutdown_timeout: 10m`, in `Defaults(
    tests updated (AC41, AC42).
 3. `core.Meta` and the `accessLog` change (`defer`, proxy fields).
 4. `core`: interfaces, registry, proxy, error handler, with a test adapter (AC8–AC23,
-   AC26–AC31, AC33–AC35).
+   AC26–AC31, AC33–AC35, AC47, AC48).
 5. `anthropic` adapter and `claudecode` profile; wire in `run.go` (AC9, AC10, AC13,
    AC17, AC27, AC28, AC32, AC36–AC39).
 6. Compose and shutdown (AC40, AC43); record the fixture (AC24, AC25).
@@ -300,10 +328,12 @@ type Meta struct {
 	HasTTFB            bool
 	GatewayError       string
 	ClientDisconnected bool
-	// unexported: the time the proxy handler started
+	UpstreamAborted    bool
+	// unexported: the time the proxy handler started, and the two body watchers
 }
 func WithMeta(ctx context.Context) (context.Context, *Meta)
 func MetaFrom(ctx context.Context) *Meta // nil outside a request
+func (m *Meta) Settle(ctx context.Context) // sets UpstreamAborted / ClientDisconnected; called by accessLog's defer
 
 // internal/protocols/anthropic
 const Name = "anthropic"
@@ -422,6 +452,8 @@ hang, or stall. Log lines are read as JSON from a goroutine-safe buffer, as in 0
 | 44 | Manual: API-key session and `claude -p` through the gateway; log lines checked as the AC says. Evidence in the PR. Needs an API key (research Q4) | PR |
 | 45 | Manual: the same on a claude.ai subscription | PR |
 | 46 | Manual: read `docs/clients/claude-code.md` against the AC's four items | PR |
+| 47 | `TestProxy_MalformedClientBody400`: a short body (half-close) and broken chunked framing each give 400 `client_body`, with the test adapter's body; a vanished client gets no body and `client_disconnected`. The Anthropic envelope: `TestProxy_ClientBodyEnvelope` | `internal/core/proxy_test.go`, `internal/protocols/anthropic/adapter_test.go` |
+| 48 | `TestAccessLog_UpstreamAbortedField`: upstream dies after headers gives `upstream_aborted: true` and no `client_disconnected`; a client that leaves mid-stream gives the reverse; a completed response and a 502 have neither | `internal/core/proxy_test.go` |
 
 **Tests no single AC names**
 - `TestRun_ProxiesAnthropicEndToEnd`: through `run` with the real adapter and profile
@@ -481,12 +513,21 @@ goroutine that is merely stuck, which is what the stack-scan leak check is for.
 - **A 10-minute shutdown.** `docker compose stop` and `make run` can now hang up to
   10 minutes on an open stream. The docs say so (AC46); a second signal still kills
   the process at once (000).
-- **Recording the fixture needs a credential** (Q4, Q10). Until Q10 is answered the
-  fixture task is blocked. Nothing else depends on it except AC24 and AC25.
-- **Working defaults pending an answer.** The plan builds on these and marks them:
-  Q9 (honour `HTTP(S)_PROXY`), Q11 (a body-read failure is a 502), Q12 (no
-  abort field on the access line), Q13 (status 499 for a client that left). Each is a
-  one-line change if the answer differs.
+- **Recording the fixture** (Q10, answered): through the recording proxy with a Claude
+  Code subscription login, so it needs no API key. AC44 still does (Q4). Nothing else
+  depends on the fixture except AC24 and AC25.
+- **A client-side write failure with a live context.** If the client's socket dies on
+  a write before the server cancels its context, and upstream is healthy, `Settle` sets
+  neither abort flag. In the throwaway run the context was already cancelled when the
+  abort reached the handler, so this is expected to be rare; AC30's mid-stream case
+  awaits the log line rather than assuming it, and would show the gap.
+- **The two watchers.** They sit on the byte path. They are read-through and change
+  nothing, but an accidental `io.ReadAll` or buffer in one would break "streams are
+  sacred". AC23 and AC24 run with them in place, and AC20 (64 MiB) covers the
+  request one.
+- **Answers applied.** Q9 (`ProxyFromEnvironment`), Q10, Q13 (499) confirm the
+  plan's defaults. Q11 and Q12 changed the spec (AC47, AC48) and are built as written
+  there.
 - **ADR status.** ADR 0003 is written `proposed` (the template's word). It flips when
   this plan is approved; the request said "Decided", and the repo's ADRs use
   `approved`, so it will read `approved`.

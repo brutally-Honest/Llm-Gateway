@@ -178,6 +178,7 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   gone, the cancelled-context branch usually catches it first.
 - 2026-09-26 (owner): Answered: a client that is gone gives `client_disconnected` and no body. A malformed or short request body gives `400` in the adapter's error envelope with `x-gateway-error: client_body`. It is never a 502.
 - Outcome: escalated → spec and plan, not yet applied: a new gateway-made error reason (`client_body`, 400) changes the spec's Errors list and needs an AC; plan.md's error handler must tell a request-body read failure from an upstream failure. spec.md is approved and was left untouched in this pass.
+- 2026-09-26: applied. spec.md now has the `400` / `client_body` reason and AC47; plan.md's error handler and AC table follow it.
 
 ## Q12 — Should the access line say that the upstream aborted mid-stream?
 - Status: answered     Level: limit
@@ -191,6 +192,7 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   closed.
 - 2026-09-26 (owner): Answered: yes, the access line says so, with the field `upstream_aborted`.
 - Outcome: escalated → spec and plan, not yet applied: `upstream_aborted` is a new access-log field (spec's Access log list) and needs an AC; plan.md's access log and response hook sections must set it when `ReverseProxy` aborts after headers. spec.md left untouched in this pass.
+- 2026-09-26: applied. spec.md now has `upstream_aborted` and AC48; plan.md's access log section and AC table follow it.
 
 ## Q13 — Which status does the access line show when the client left before any response?
 - Status: answered     Level: limit
