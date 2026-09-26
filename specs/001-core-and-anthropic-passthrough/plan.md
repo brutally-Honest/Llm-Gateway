@@ -227,9 +227,10 @@ Recorded once, outside `make verify`, with no committed script (Q10):
 The replay serves `stream.sse` as a fake upstream, flushing at each blank-line event
 boundary, and compares the client's bytes to the file (AC24). `TestFixtures_NoIdentifiers`
 walks every `testdata` directory in the module and fails on: `sk-ant-` keys, `Bearer`
-followed by a token, any UUID, any email address, any `wrkspc_` workspace ID, and the names `organization`,
-`account_uuid` and `org_id`. UUIDs are banned outright, which makes scrubbing
-`anthropic-organization-id` a hard failure rather than a review point.
+(any case) followed by a token, any UUID, any email address, any `wrkspc_` workspace
+ID, and the names `organization`, `account_uuid` and `org_id`. UUIDs are banned
+outright, which makes scrubbing `anthropic-organization-id` a hard failure rather than a
+review point.
 
 ### Shutdown and compose (AC40, AC43)
 No new mechanism: `srv.Shutdown` already waits for in-flight handlers, and a proxied

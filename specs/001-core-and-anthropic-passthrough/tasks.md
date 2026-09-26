@@ -290,9 +290,9 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
 ## Fixture guard and docs
 
 - [ ] T18 — `test/conventions/fixtures_test.go`: walks every `testdata` directory in the
-  module and fails on `sk-ant-` keys, `Bearer` followed by a token, any UUID, any email
-  address, any `wrkspc_` workspace ID, and the words `organization`,
-  `account_uuid` and `org_id`. The scanner is a function the test calls, so it can be
+  module and fails on `sk-ant-` keys, `Bearer` (any case) followed by a token, any UUID, any
+  email address, any `wrkspc_` workspace ID, and the words `organization`, `account_uuid`
+  and `org_id`. The scanner is a function the test calls, so it can be
   proved on seeded input. Tests first:
   `TestFixtureScanner_FlagsEachIdentifier` (a temp directory seeded with one of each
   identifier, each flagged, and a clean file passes) and `TestFixtures_NoIdentifiers`
