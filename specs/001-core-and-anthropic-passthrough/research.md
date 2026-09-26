@@ -205,3 +205,33 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
   usual "client closed request" convention and is never seen by anyone.
 - 2026-09-26 (owner): Answered: `499`, header only, no body, as the plan's working default has it.
 - Outcome: plan: no change (already the working default).
+
+## Q14 — Who records and commits the golden fixture, given an implementer cannot?
+- Status: open     Level: limit
+- Blocks / shapes: AC24, AC25; the golden-replay task (T21) in tasks.md
+- Context: 2026-09-26. Plan "Golden fixture" steps 1–4 record one real stream through
+  the throwaway recording proxy, driven by a logged-in Claude Code session (Q10). An
+  implementer agent has no Claude Code login, and the recording proxy is deliberately
+  not in the repo. `TestProxy_GoldenAnthropicStreamReplay` cannot pass, and `make
+  verify` cannot stay green, without `stream.sse` and `stream.headers`. Skipping the
+  test when the files are absent is forbidden (AGENTS.md, Do not).
+- Question: does the owner record and commit the fixture files themselves, so the task
+  only adds the replay test, or is there another way to produce a real recording?
+- Answer: open. Working default in tasks.md: the owner follows plan steps 1–4 and
+  commits `internal/protocols/anthropic/testdata/{stream.sse,stream.headers,README.md}`
+  as `test(anthropic): record the golden stream fixture`. T21 is ordered after the docs
+  page and stops as BLOCKED until those files exist. Nothing is faked.
+
+## Q15 — Which auth kind does the Anthropic adapter report for unusual header combinations?
+- Status: open     Level: flow
+- Blocks / shapes: `AuthKind` in the Anthropic adapter (T14), AC37
+- Context: 2026-09-26. The spec says `auth` is `api_key` / `bearer` / `none`, "which
+  header is present, never its value", and that the gateway never reads the values of
+  `x-api-key` or `Authorization`. It does not say what happens when both headers are
+  present, or when `Authorization` carries a scheme other than `Bearer`, which can only
+  be told apart by reading the value's prefix.
+- Question: with both `x-api-key` and `Authorization` present, which wins? Is any
+  `Authorization` header `bearer` regardless of scheme, or only `Bearer …`?
+- Answer: open. Working default: presence only, never the value. `x-api-key` present
+  gives `api_key`; otherwise `Authorization` present gives `bearer`; otherwise `none`.
+  Claude Code sends one of them per mode (Q3), so the edge cases are not observed.
