@@ -117,7 +117,7 @@ Still local only. There is still no gateway auth, so the default bind stays
 - **Access log.** 000's `request` line gains these fields on proxied requests:
   - `protocol` (`anthropic`);
   - `client` (`claude-code` / `unknown`);
-  - `auth` (`api_key` / `bearer` / `none`: which header is present, never its value);
+  - `auth` (`api_key` / `bearer` / `both` / `none`: which header is present, never its value);
   - `stream` (the response is `text/event-stream`);
   - `ttfb_ms` (time to upstream response headers);
   - `gateway_error` (the reason, when the gateway created the error);

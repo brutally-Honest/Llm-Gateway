@@ -228,7 +228,7 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
 - Outcome: tasks: T21 changed from `(blocked: Q14)` to `(shaped: Q14)`.
 
 ## Q15 — Which auth kind does the Anthropic adapter report for unusual header combinations?
-- Status: open     Level: flow
+- Status: answered     Level: flow
 - Blocks / shapes: `AuthKind` in the Anthropic adapter (T14), AC37
 - Context: 2026-09-26. The spec says `auth` is `api_key` / `bearer` / `none`, "which
   header is present, never its value", and that the gateway never reads the values of
@@ -240,6 +240,12 @@ the never-delete rule: `PLAN.md` §10 and `AGENTS.md`. Don't restate them here.
 - Answer: open. Working default: presence only, never the value. `x-api-key` present
   gives `api_key`; otherwise `Authorization` present gives `bearer`; otherwise `none`.
   Claude Code sends one of them per mode (Q3), so the edge cases are not observed.
+- Answer (2026-09-26, owner): with both `x-api-key` and `Authorization` present, log
+  `auth: both`. Still presence only, never the value, so any `Authorization` scheme
+  counts as `bearer`.
+- Outcome: spec: `both` added to the `auth` values. tasks: T14's
+  `TestAccessLog_AuthKind` gains the both-headers case; T14 changed from
+  `(blocked: Q15)` to `(shaped: Q15)`.
 
 ## Q16 — Does `ReverseProxy` strip every header the spec calls hop-by-hop?
 - Status: answered     Level: technical

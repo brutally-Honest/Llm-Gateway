@@ -253,10 +253,10 @@ leak check (a goroutine-profile stack scan, no new dependency) before it returns
   and `x-gateway-error`), `TestProxy_ClientBodyEnvelope` (`400`, this envelope,
   `client_body`), `TestProxy_UpstreamErrorsVerbatim` (`429`, `500` and `529` with
   `anthropic-ratelimit-*` headers, all byte-identical), and `TestAccessLog_AuthKind`
-  (`api_key`, `bearer`, `none`). Done:
+  (`api_key`, `bearer`, `both` when `x-api-key` and `Authorization` are both present,
+  `none`). Done:
   those pass under `-race`. Commit: `feat(anthropic): add the messages adapter` (AC9,
-  AC10, AC13, AC17, AC26, AC27, AC28, AC37, AC47) (shaped: Q1, Q2, Q3, Q18)
-  (blocked: Q15)
+  AC10, AC13, AC17, AC26, AC27, AC28, AC37, AC47) (shaped: Q1, Q2, Q3, Q15, Q18)
 
 ## Wiring
 
